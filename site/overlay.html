@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Словолов</title>
+<link rel="stylesheet" href="css/overlay.css">
+</head>
+<body>
+<div id="stage" hidden>
+  <div class="card" id="card">
+    <div class="cam"></div>
+    <section class="main" id="main">
+      <header class="head" id="head">
+        <div class="brand">Словолов</div>
+        <div class="round">раунд <b id="round"></b></div>
+        <div class="status" id="status"></div>
+        <div class="clock" id="clock" hidden></div>
+        <div class="count">угадано <b id="found">0</b> из <b id="total">0</b><span class="meter"><i id="meter"></i></span></div>
+      </header>
+      <div class="play" id="play">
+        <div class="letters" id="letters"></div>
+        <div class="timeline" id="timeline">
+          <div class="track"><div class="fill" id="fill"></div></div>
+          <div class="label" id="label"></div>
+        </div>
+        <div class="words" id="words"></div>
+      </div>
+      <div class="lobby" id="lobby" hidden>
+        <div class="letters" id="lobby-tiles"></div>
+        <h1>Игра в слова для чата</h1>
+        <p>Собирай слова из букв и пиши их в чат</p>
+        <div class="countdown" id="countdown"><b id="countdown-number"></b></div>
+      </div>
+    </section>
+    <aside class="list chatbox"><h3>Чат</h3><div class="chat" id="chat"></div></aside>
+    <aside class="side" id="side">
+      <div class="list" id="box-round"><h3 id="h-round"></h3><ol id="list-round"></ol></div>
+      <div class="list grow" id="box-total"><h3>Общий счёт</h3><ol id="list-total"></ol></div>
+      <div class="list rules" id="box-rules"><h3>Как играть</h3><ul id="rules"></ul></div>
+    </aside>
+  </div>
+</div>
+<script type="module" src="js/overlay.js"></script>
+</body>
+</html>

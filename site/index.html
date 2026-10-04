@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Словолов — игра в слова для чата Twitch</title>
+<meta name="description" content="Игра в слова для чата Twitch на русском: зрители собирают слова из букв и пишут их в чат. Настрой, скопируй ссылку и вставь в OBS — ставить ничего не нужно.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ffb547'/%3E%3Ctext x='16' y='24' font-family='Arial' font-weight='900' font-size='22' text-anchor='middle' fill='%23241a06'%3EС%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/settings.css">
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <h1>Словолов</h1>
+    <p class="tagline">игра в слова для чата Twitch</p>
+    <p class="author">Создано <a href="https://twitch.tv/sumaizu" target="_blank" rel="noopener">Sumaizu</a></p>
+  </header>
+
+  <form class="columns" id="settings" autocomplete="off">
+    <div class="column">
+      <section class="panel">
+        <h2>Ссылка для OBS</h2>
+        <div class="row">
+          <button type="submit" class="primary" id="save">Сохранить</button>
+          <input type="text" id="link" readonly aria-label="Ссылка на оверлей">
+          <button type="button" id="copy">Копировать</button>
+        </div>
+        <p class="status" id="status"></p>
+        <p class="hint">Источник «Браузер» в OBS, размер 1920×1080. Игра начинается через 10 секунд после того, как источник появился на экране, и останавливается, когда он скрыт.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Пример</h2>
+        <div class="preview"><iframe id="preview" title="Пример оверлея"></iframe></div>
+        <p class="hint">Так оверлей выглядит с этими настройками. Слова, чат и счёт здесь выдуманные.</p>
+      </section>
+
+      <div class="panel">
+        <fieldset>
+          <legend>Чат</legend>
+          <div class="field">
+            <label for="s-channel">Канал Twitch</label>
+            <input type="text" id="s-channel" placeholder="логин канала или ссылка" spellcheck="false">
+          </div>
+          <label class="check">
+            <input type="checkbox" id="s-chat_commands">
+            <span>Команды для стримера и модераторов
+              <span class="hint"><code>!словолов-раунд</code> — закончить раунд</span>
+              <span class="hint"><code>!словолов-сброс</code> — обнулить общий счёт</span>
+            </span>
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="panel">
+        <fieldset>
+          <legend>Вид</legend>
+          <div class="split">
+            <div class="group">
+              <div class="field">
+                <label for="s-accent">Цвет плашек с буквами</label>
+                <div class="row"><input type="color" id="s-accent"></div>
+              </div>
+              <div class="switch" role="group" aria-label="Окошко под вебку">
+                <button type="button" data-webcam="1">С вебкой</button><button type="button" data-webcam="0">Без вебки</button>
+              </div>
+            </div>
+            <div class="group">
+              <label class="check"><input type="checkbox" id="hide-chat"><span>Скрыть чат <span class="hint">вместе с окошком под вебку</span></span></label>
+              <label class="check"><input type="checkbox" id="hide-side"><span>Убрать счёт и правила</span></label>
+              <label class="check"><input type="checkbox" id="hide-bg"><span>Прозрачный фон</span></label>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="column">
+      <div class="panel">
+        <fieldset>
+          <legend>Раунд</legend>
+          <div class="field">
+            <label for="s-pause">Пауза между раундами</label>
+            <div class="row"><input type="number" id="s-pause" min="3" max="3600"><span class="hint">секунд</span></div>
+          </div>
+          <div class="field">
+            <label for="s-hint_every">Подсказка</label>
+            <div class="row"><input type="number" id="s-hint_every" min="0" max="3600"><span class="hint">секунд без угаданных слов и открывается одна буква</span></div>
+            <p class="hint">0 — без подсказок</p>
+          </div>
+          <div class="field">
+            <label for="s-round_time">Лимит времени на раунд</label>
+            <div class="row"><input type="number" id="s-round_time" min="0" max="7200"><span class="hint">секунд</span></div>
+            <p class="hint">0 — раунд идёт, пока не открыты все слова</p>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Слова</legend>
+          <div class="field">
+            <span class="label">Главное слово</span>
+            <div class="row">
+              <span class="hint">от</span><input type="number" id="s-base_min" min="4" max="12" aria-label="Главное слово: букв от">
+              <span class="hint">до</span><input type="number" id="s-base_max" min="4" max="12" aria-label="Главное слово: букв до">
+              <span class="hint">букв</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="s-extra_letters">Добавить букв к главному слову</label>
+            <div class="row"><input type="number" id="s-extra_letters" min="0" max="4"><span class="hint">с ними собирается больше слов</span></div>
+          </div>
+          <div class="field">
+            <label for="s-min_len">Самое короткое слово</label>
+            <div class="row"><input type="number" id="s-min_len" min="2" max="6"><span class="hint">букв</span></div>
+          </div>
+          <div class="field">
+            <label for="s-max_words">Слов в раунде</label>
+            <div class="row">
+              <span class="hint">не больше</span><input type="number" id="s-max_words" min="3" max="45">
+              <span class="hint">и не меньше</span><input type="number" id="s-min_words" min="1" max="40" aria-label="Слов в раунде не меньше">
+            </div>
+          </div>
+          <p class="summary" id="summary"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Общий счёт</legend>
+          <div class="field">
+            <label for="s-reset_mode">Сбрасывать</label>
+            <select id="s-reset_mode">
+              <option value="never">только командой в чате</option>
+              <option value="day">каждый день</option>
+              <option value="week">каждую неделю, в понедельник</option>
+              <option value="month">каждый месяц, первого числа</option>
+              <option value="timer">по таймеру</option>
+            </select>
+          </div>
+          <div class="field" id="reset-hour-field">
+            <label for="s-reset_hour">В котором часу</label>
+            <div class="row"><input type="number" id="s-reset_hour" min="0" max="23"><span class="hint">часов, по времени компьютера с OBS</span></div>
+          </div>
+          <div class="field" id="reset-hours-field">
+            <label for="s-reset_hours">Таймер</label>
+            <div class="row"><span class="hint">каждые</span><input type="number" id="s-reset_hours" min="1" max="720"><span class="hint">часов</span></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Звук</legend>
+          <label class="check"><input type="checkbox" id="s-sound"><span>Звуки в оверлее</span></label>
+          <div class="field">
+            <label for="s-volume">Громкость</label>
+            <div class="row">
+              <input type="range" id="s-volume" min="0" max="100" step="5">
+              <span class="hint" id="volume-text"></span>
+              <button type="button" id="listen">Послушать</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="footer"><button type="button" class="quiet" id="defaults">Рекомендуемые настройки</button></div>
+      </div>
+    </div>
+  </form>
+</main>
+<script type="module" src="js/settings.js"></script>
+</body>
+</html>
