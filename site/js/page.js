@@ -10,7 +10,8 @@ const DATE_MODES = ['day', 'week', 'month'];
 const SYNC_MS = 500;
 
 const $ = (id) => document.getElementById(id);
-const frame = $('game'), form = $('settings'), channelField = $('s-channel');
+const frame = $('game'), form = $('settings'), channelField = $('s-channel'), linkPanel = $('link-panel');
+const TAGLINE = $('status').textContent;
 
 let settings = restore();
 let playing = false;
@@ -69,8 +70,11 @@ function showDependentFields(shown) {
 }
 
 function showStatus(id, kind, text) {
-  $(id).className = 'status ' + kind;
-  $(id).textContent = text;
+  const node = $(id);
+  node.classList.remove('ok', 'warn');
+  if (kind) node.classList.add(kind);
+  node.textContent = text;
+  node.title = text;
 }
 
 function showLink() {
@@ -128,6 +132,7 @@ function toggleGame() {
   } else {
     api.start();
     playing = true;
+    showLinkPanel(false);
   }
   sync();
 }
@@ -150,14 +155,16 @@ function sync() {
     notice = 'Под эти настройки не нашлось слов — игра остановлена.';
   }
   $('play').textContent = playing ? 'Остановить' : 'Начать';
+  $('example-note').hidden = playing;
   if (playing) {
     notice = '';
     const chat = api.chat.status;
-    showStatus('status', chat.state === 'connected' ? 'ok' : 'warn', 'Игра идёт: ' + chat.text);
+    const text = chat.text.charAt(0).toUpperCase() + chat.text.slice(1);
+    showStatus('status', chat.state === 'connected' ? 'ok' : 'warn', text);
   } else if (notice) {
     showStatus('status', 'warn', notice);
   } else {
-    showStatus('status', '', 'Сейчас на экране пример: слова, чат и счёт выдуманные.');
+    showStatus('status', '', TAGLINE);
   }
 }
 
@@ -166,6 +173,11 @@ function toggleSettings() {
   form.hidden = !open;
   $('layout').classList.toggle('with-settings', open);
   $('toggle-settings').setAttribute('aria-expanded', String(open));
+}
+
+function showLinkPanel(open) {
+  linkPanel.hidden = !open;
+  $('toggle-link').setAttribute('aria-expanded', String(open));
 }
 
 async function copyLink() {
@@ -200,7 +212,14 @@ $('start').addEventListener('submit', (event) => {
 channelField.addEventListener('change', commitChannel);
 channelField.addEventListener('input', () => { notice = ''; });
 $('toggle-settings').addEventListener('click', toggleSettings);
+$('toggle-link').addEventListener('click', () => showLinkPanel(linkPanel.hidden));
 $('copy').addEventListener('click', copyLink);
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') showLinkPanel(false);
+});
+document.addEventListener('click', (event) => {
+  if (!linkPanel.contains(event.target) && event.target !== $('toggle-link')) showLinkPanel(false);
+});
 
 fillForm();
 showLink();

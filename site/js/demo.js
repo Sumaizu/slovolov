@@ -87,7 +87,7 @@ export function demoState(settings) {
       award(line.user, line.text.length);
     }
     feed.push({ id: feed.length + 1, user: line.user, text: line.text, color: '', pts: scored ? line.text.length : 0,
-      bonus: line.kind === 'outside', repeat: line.kind === 'repeat', star: false });
+      bonus: line.kind === 'outside', repeat: line.kind === 'repeat', star: '' });
   }
   return {
     version: 1,

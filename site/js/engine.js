@@ -1,7 +1,12 @@
 import { isWord, norm, pick, shuffle } from './words.js';
 
 export const COMMANDS = new Map([['!словолов-раунд', 'skip'], ['!словолов-сброс', 'reset']]);
-export const STARS = ['sumaizu'];
+export const STARS = new Map([
+  ['sumaizu', 'rainbow'],
+  ['sukoshissrb', 'white'],
+  ['fra3a', 'thyme'],
+  ['welovegames', 'heart'],
+]);
 export const BOTS = [
   'nightbot', 'streamelements', 'streamlabs', 'moobot', 'fossabot', 'wizebot', 'jeetbot', 'soundalerts', 'sery_bot',
   'kofistreambot', 'tangiabot', 'botisimo', 'lumiastream', 'streamstickers', 'creatisbot', 'own3d', 'dixperbro',
@@ -271,7 +276,7 @@ export class Game {
       hint_every: this.s.hint_every,
       top: this.scores.top(TOP_SHOWN),
       players: this.scores.size,
-      stars: STARS.slice(),
+      stars: Array.from(STARS),
       feed: this._chat.slice(-CHAT_SHOWN).map((entry) => {
         const message = { id: entry.id, user: entry.user, text: entry.text, color: entry.color, pts: entry.pts,
           bonus: entry.bonus, repeat: entry.repeat, star: entry.star };
@@ -383,7 +388,7 @@ export class Game {
       pts: 0,
       bonus: false,
       repeat: false,
-      star: STARS.includes(login || name.toLowerCase()),
+      star: STARS.get(login || name.toLowerCase()) || '',
       emotes: cleanEmotes(emotes),
       msgId: String(msgId || ''),
       login,

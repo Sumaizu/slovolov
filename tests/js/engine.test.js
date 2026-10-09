@@ -544,18 +544,22 @@ test('чат: смайлики Twitch доходят до ленты', () => {
   no('emotes' in feed[3]);
 });
 
-test('чат: автор игры узнаётся по логину', () => {
+test('чат: особые ники узнаются по логину, у каждого свой вид', () => {
   const { game } = startRound();
-  const dev = STARS[0], shown = dev.charAt(0).toUpperCase() + dev.slice(1);
-  game.feed(shown, 'привет', { login: dev });
+  eq(Array.from(STARS), [['sumaizu', 'rainbow'], ['sukoshissrb', 'white'], ['fra3a', 'thyme'],
+    ['welovegames', 'heart']]);
+  game.feed('Sumaizu', 'привет', { login: 'sumaizu' });
   game.feed('Петя', 'привет', { login: 'petya' });
-  game.feed('Ник На Кириллице', 'привет', { login: dev });
-  game.feed(shown, 'привет', { login: 'samozvanec' });
-  game.feed(dev.toUpperCase(), 'привет');
+  game.feed('Ник На Кириллице', 'привет', { login: 'sumaizu' });
+  game.feed('Sumaizu', 'привет', { login: 'samozvanec' });
+  game.feed('SUMAIZU', 'привет');
+  game.feed('SukoshiSSRB', 'привет', { login: 'sukoshissrb' });
+  game.feed('FRA3A', 'привет');
+  game.feed('WELOVEGAMES', 'привет', { login: 'welovegames' });
+  game.feed('constructor', 'привет');
   const state = game.snapshot();
-  eq(state.feed.map((m) => m.star), [true, false, true, false, true]);
-  eq(state.stars, STARS);
-  eq(STARS.length, 1);
+  eq(state.feed.map((m) => m.star), ['rainbow', '', 'rainbow', '', 'rainbow', 'white', 'thyme', 'heart', '']);
+  eq(state.stars, Array.from(STARS));
 });
 
 test('сброс счёта: когда следующий — по дате', () => {

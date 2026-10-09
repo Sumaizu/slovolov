@@ -12,34 +12,31 @@
 <main class="page">
   <header class="top">
     <h1>Словолов</h1>
-    <p class="tagline">игра в слова для чата Twitch</p>
-    <p class="author">Создано <a href="https://twitch.tv/sumaizu" target="_blank" rel="noopener">Sumaizu</a></p>
-  </header>
-
-  <div class="bar">
-    <form class="panel" id="start" autocomplete="off">
-      <h2>Игра в браузере</h2>
-      <div class="row">
-        <input type="text" id="s-channel" placeholder="канал Twitch: логин или ссылка" spellcheck="false" aria-label="Канал Twitch">
-        <button type="submit" class="primary" id="play" disabled>Начать</button>
-        <button type="button" id="toggle-settings" aria-expanded="false" aria-controls="settings">Настройки</button>
-      </div>
-      <p class="status" id="status"></p>
+    <p class="tagline" id="status">игра в слова для чата Twitch</p>
+    <form class="controls" id="start" autocomplete="off">
+      <input type="text" id="s-channel" placeholder="канал Twitch" spellcheck="false" aria-label="Канал Twitch">
+      <button type="submit" class="primary" id="play" disabled>Начать</button>
+      <button type="button" id="toggle-settings" aria-expanded="false" aria-controls="settings">Настройки</button>
+      <button type="button" id="toggle-link" aria-expanded="false" aria-controls="link-panel">Ссылка для OBS</button>
     </form>
-
-    <section class="panel">
-      <h2>Ссылка для OBS</h2>
+    <p class="author">Создано <a href="https://twitch.tv/sumaizu" target="_blank" rel="noopener">Sumaizu</a></p>
+    <section class="panel popover" id="link-panel" hidden>
       <div class="row">
         <input type="text" id="link" readonly aria-label="Ссылка на оверлей">
         <button type="button" id="copy">Копировать</button>
       </div>
       <p class="status" id="link-status"></p>
-      <p class="hint">Источник «Браузер», размер 1920×1080. Игра начинается через 10 секунд после того, как источник появился на экране, и останавливается, когда он скрыт.</p>
+      <p class="hint">Вставь ссылку в источник «Браузер» в OBS, размер 1920×1080. Игра начинается через 10 секунд после того, как источник появился на экране, и останавливается, когда он скрыт.</p>
     </section>
-  </div>
+  </header>
 
   <div class="layout" id="layout">
-    <div class="screen"><iframe id="game" title="Словолов"></iframe></div>
+    <div class="stage">
+      <div class="screen">
+        <iframe id="game" title="Словолов"></iframe>
+        <p class="note" id="example-note">Пример: слова, чат и счёт выдуманные</p>
+      </div>
+    </div>
 
     <form class="panel settings" id="settings" autocomplete="off" hidden>
       <fieldset>

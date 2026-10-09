@@ -47,6 +47,7 @@ const embedded = (query = '') => open('overlay.html?embed=1' + (query ? '&' + qu
 async function playing(query = '') {
   const frame = await overlay(query);
   const w = frame.contentWindow, game = w.slovolov.game;
+  await until(() => !element(w, 'lobby').hidden, 'отсчёт на экране');
   game.tick(game.startsAt);
   await until(() => all(w, '#letters .tile').length && element(w, 'lobby').hidden, 'раунд на экране');
   return { frame, w, game, chat: w.slovolov.chat, view: w.slovolov.view };
@@ -345,7 +346,7 @@ test('оверлей: без звука — тишина', async () => {
 test('оверлей: в чате — «уже было», автор игры и смайлики четырёх сервисов', async () => {
   forget();
   const { frame, w, game, chat } = await playing('hint_every=0');
-  const dev = game.snapshot().stars[0];
+  const dev = game.snapshot().stars[0][0];
   noImages(w);
   const asked = [];
   w.fetch = async (url) => {
@@ -365,8 +366,9 @@ test('оверлей: в чате — «уже было», автор игры �
   ok(rows()[1].innerText.includes('уже было'), rows()[1].innerText);
   no(rows()[0].classList.contains('star'));
   ok(rows()[2].classList.contains('star') && rows()[2].querySelector('b').classList.contains('rainbow'));
-  ok(w.getComputedStyle(rows()[2]).borderTopWidth !== '0px');
-  eq(w.getComputedStyle(rows()[0]).borderTopWidth, '0px');
+  ok(w.getComputedStyle(rows()[2], '::before').borderTopWidth !== '0px');
+  eq(w.getComputedStyle(rows()[2], '::before').animationName, 'rainbow');
+  eq(w.getComputedStyle(rows()[0], '::before').content, 'none');
   eq(w.getComputedStyle(rows()[2].querySelector('.text')).color, w.getComputedStyle(rows()[0]).color);
   eq(images(rows()[3]), ['https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0']);
   ok(rows()[3].innerText.includes('ну и буквы constructor'));
@@ -399,31 +401,66 @@ test('оверлей: в чате — «уже было», автор игры �
   frame.remove();
 });
 
-function rainbowInStep(w, count) {
-  const phases = all(w, '.rainbow').filter((node) => node.getClientRects().length).map((node) => {
-    const animation = node.getAnimations().find((item) => item.animationName === 'rainbow');
-    return animation ? animation.effect.getComputedTiming().progress : null;
-  });
+test('оверлей: у особых ников свой цвет и своя рамка — в чате и в счёте', async () => {
+  forget();
+  const { frame, w, game, chat } = await playing('hint_every=0');
+  const style = (node, pseudo) => w.getComputedStyle(node, pseudo);
+  const rows = () => all(w, '#chat .msg');
+  chat.onMessage('SukoshiSSRB', 'всем привет', false, { login: 'sukoshissrb' });
+  chat.onMessage('FRA3A', 'привет', false, { login: 'fra3a' });
+  chat.onMessage('WELOVEGAMES', game.answers().words[0].word, false, { login: 'welovegames' });
+  chat.onMessage('Sumaizu', 'привет', false, { login: 'sumaizu' });
+  chat.onMessage('Петя', 'привет', false, { login: 'petya' });
+  await until(() => rows().length === 5, 'пять сообщений');
+  eq(rows().map((row) => row.className), ['msg star star-white pop', 'msg star star-thyme pop',
+    'msg hit star star-heart pop', 'msg star star-rainbow pop', 'msg pop']);
+  const [white, thyme, heart, rainbow, plain] = rows();
+  const colors = ['rgb(255, 255, 255)', 'rgb(94, 220, 31)', 'rgb(212, 36, 38)'];
+  eq([white, thyme, heart].map((row) => style(row.querySelector('b')).color), colors);
+  eq([white, thyme, heart].map((row) => style(row).borderTopColor), colors);
+  eq(rows().map((row) => style(row).animationName), ['msg-in', 'msg-in', 'msg-in', 'msg-in', 'msg-in']);
+  eq([style(heart, '::after').animationName, style(heart, '::after').color], ['heart', colors[2]]);
+  eq(style(heart, '::after').content.codePointAt(1), 0x2665);
+  eq([white, thyme, rainbow, plain].map((row) => style(row, '::after').content), ['none', 'none', 'none', 'none']);
+  eq([style(rainbow).borderTopWidth, style(rainbow, '::before').animationName], ['0px', 'rainbow']);
+  ok(style(rainbow, '::before').backgroundImage.includes('linear-gradient'));
+  eq(style(rainbow, '::before').backgroundImage, style(rainbow.querySelector('b')).backgroundImage);
+  eq([style(plain).borderTopWidth, style(plain, '::before').content], ['0px', 'none']);
+  const height = (row) => Math.round(row.getBoundingClientRect().height);
+  ok(Math.abs(height(rainbow) - height(white)) <= 1);
+  await until(() => w.document.querySelector('#list-round .name.heart'), 'ник в счёте раунда');
+  eq(style(w.document.querySelector('#list-total .name.heart')).color, colors[2]);
+  frame.remove();
+  forget();
+});
+
+function inStep(w, name, count) {
+  const phases = w.document.getAnimations().filter((item) => item.animationName === name)
+    .map((item) => item.effect.getComputedTiming().progress);
   if (phases.length < count || phases.includes(null)) return false;
   const range = Math.max(...phases) - Math.min(...phases);
   return Math.min(range, 1 - range) < 0.02;
 }
 
-test('оверлей: ник автора переливается везде в лад — и после того, как источник скрыли и показали', async () => {
+test('оверлей: радуга автора и сердечки идут в лад — и после того, как источник скрыли и показали', async () => {
   forget();
   const { frame, w, game, chat } = await playing('hint_every=0');
-  const dev = game.snapshot().stars[0];
+  const dev = game.snapshot().stars[0][0];
   chat.onMessage(dev, 'всем привет', false, { login: dev });
-  await wait(350);
+  chat.onMessage('WELOVEGAMES', 'привет', false, { login: 'welovegames' });
+  await wait(700);
   chat.onMessage(dev, game.answers().words[0].word, false, { login: dev });
-  await until(() => rainbowInStep(w, 4), 'ник в чате и в счёте переливается в лад');
+  chat.onMessage('WELOVEGAMES', 'я тут', false, { login: 'welovegames' });
+  await until(() => inStep(w, 'rainbow', 6), 'ник и рамка в чате, ник в счёте переливаются в лад');
+  await until(() => inStep(w, 'heart', 2), 'сердечки появляются разом');
   showSource(w, false);
   await until(() => element(w, 'stage').hidden, 'оверлей убран');
   await wait(450);
   showSource(w, true);
   await until(() => !element(w, 'stage').hidden, 'оверлей на экране');
   chat.onMessage(dev, 'я снова тут', false, { login: dev });
-  await until(() => rainbowInStep(w, 4), 'после возвращения ник снова переливается в лад');
+  await until(() => inStep(w, 'rainbow', 7), 'после возвращения радуга снова идёт в лад');
+  await until(() => inStep(w, 'heart', 2), 'после возвращения сердечки снова появляются разом');
   frame.remove();
   forget();
 });
@@ -533,7 +570,9 @@ test('страница: при первом заходе — пример, ре�
   const w = frame.contentWindow, game = gameOf(w);
   ok(link(w).endsWith('/site/overlay.html'), link(w));
   ok(element(w, 'link-status').textContent.includes('канал'));
-  ok(element(w, 'status').textContent.includes('пример'));
+  eq(element(w, 'status').textContent, 'игра в слова для чата Twitch');
+  ok(element(w, 'link-panel').hidden && element(w, 'settings').hidden);
+  ok(element(w, 'example-note').textContent.includes('Пример') && !element(w, 'example-note').hidden);
   eq([game.slovolov.game.state, all(game, '#words .slot').length], ['stopped', 22]);
   eq(element(w, 'play').textContent, 'Начать');
   eq(shownNumbers(w), RECOMMENDED);
@@ -541,6 +580,50 @@ test('страница: при первом заходе — пример, ре�
   eq(w.document.getElementById('save'), null);
   const author = w.document.querySelector('.author a');
   eq([author.textContent, author.getAttribute('href')], ['Sumaizu', 'https://twitch.tv/sumaizu']);
+  frame.remove();
+  forget();
+});
+
+test('страница: всё управление — в одной строке с заголовком, игра занимает остальную страницу', async () => {
+  forget();
+  const frame = await mainPage();
+  const w = frame.contentWindow;
+  const place = (node) => node.getBoundingClientRect();
+  const title = place(w.document.querySelector('h1')), screen = place(element(w, 'game'));
+  for (const node of [element(w, 's-channel'), element(w, 'play'), element(w, 'toggle-settings'),
+    element(w, 'toggle-link'), w.document.querySelector('.author a')]) {
+    ok(place(node).left > title.right && place(node).top < title.bottom && place(node).bottom > title.top, node.id);
+  }
+  ok(place(w.document.querySelector('.author a')).right > w.innerWidth - 40);
+  ok(screen.top < title.bottom + 30 && screen.bottom > w.innerHeight - 40, [screen.top, screen.bottom]);
+  ok(Math.abs(screen.width / screen.height - 16 / 9) < 0.02);
+  eq([w.document.documentElement.scrollHeight, w.document.documentElement.scrollWidth], [w.innerHeight, w.innerWidth]);
+  frame.remove();
+  forget();
+});
+
+test('страница: ссылка для OBS выезжает по кнопке и не двигает игру', async () => {
+  forget();
+  const frame = await mainPage();
+  const w = frame.contentWindow;
+  const place = (node) => node.getBoundingClientRect();
+  const toggle = element(w, 'toggle-link'), panel = element(w, 'link-panel'), screen = element(w, 'game');
+  const before = place(screen);
+  ok(panel.hidden);
+  toggle.click();
+  no(panel.hidden);
+  eq(toggle.getAttribute('aria-expanded'), 'true');
+  ok(place(panel).top >= place(toggle).bottom && place(panel).bottom > before.top);
+  ok(place(element(w, 'link')).width > 300 && place(element(w, 'copy')).width > 0);
+  eq([place(screen).top, place(screen).width], [before.top, before.width]);
+  w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape' }));
+  ok(panel.hidden);
+  toggle.click();
+  element(w, 'link').click();
+  no(panel.hidden);
+  w.document.querySelector('h1').click();
+  ok(panel.hidden);
+  eq(toggle.getAttribute('aria-expanded'), 'false');
   frame.remove();
   forget();
 });
@@ -559,8 +642,8 @@ test('страница: кнопка «Настройки» открывает �
   eq(toggle.getAttribute('aria-expanded'), 'true');
   ok(place(panel).left >= place(screen).right && place(screen).width < wide);
   ok(Math.abs(place(screen).width / place(screen).height - 16 / 9) < 0.02);
-  const title = place(w.document.querySelector('h1')), credit = place(w.document.querySelector('.author a'));
-  ok(credit.left > title.right + 300 && credit.top < title.bottom && credit.bottom > title.top);
+  ok(panel.scrollHeight > panel.clientHeight && place(panel).bottom <= w.innerHeight);
+  eq(w.document.documentElement.scrollHeight, w.innerHeight);
   for (const id of ['s-accent', 'hide-chat', 'hide-side', 'hide-bg', 'defaults']) {
     ok(place(element(w, id)).left >= place(panel).left && place(element(w, id)).right <= place(panel).right, id);
   }
@@ -585,20 +668,25 @@ test('страница: «Начать» запускает игру в брау
   ok(element(w, 'status').classList.contains('warn') && element(w, 'status').textContent.includes('канал'));
   eq(w.document.activeElement, element(w, 's-channel'));
   element(w, 's-channel').value = 'https://twitch.tv/Some_One';
+  element(w, 'toggle-link').click();
+  no(element(w, 'link-panel').hidden);
   element(w, 'play').click();
   eq([element(w, 's-channel').value, query(w), api.game.state, sockets.length], ['some_one', 'channel=some_one',
     'countdown', 1]);
   eq(element(w, 'play').textContent, 'Остановить');
+  ok(element(w, 'link-panel').hidden && element(w, 'example-note').hidden);
   await until(() => !element(game, 'lobby').hidden, 'отсчёт в рамке');
   api.game.tick(api.game.startsAt);
   await until(() => all(game, '#words .slot').length && element(game, 'lobby').hidden, 'раунд в рамке');
-  await until(() => element(w, 'status').textContent.includes('Игра идёт'), 'страница знает, что игра идёт');
+  await until(() => element(w, 'status').textContent === 'Подключаюсь к чату some_one…', 'состояние чата в шапке');
+  ok(element(w, 'status').classList.contains('warn'));
   api.chat.onMessage('Вася', api.game.answers().words[0].word, false, {});
   await until(() => all(game, '#words .slot.open').length === 1, 'слово открылось');
   element(w, 'play').click();
   eq([api.game.state, element(w, 'play').textContent, sockets[0].closed], ['stopped', 'Начать', true]);
   await until(() => element(game, 'chat').innerText.includes('уже было'), 'снова пример');
-  ok(element(w, 'status').textContent.includes('пример'));
+  eq(element(w, 'status').textContent, 'игра в слова для чата Twitch');
+  no(element(w, 'example-note').hidden);
   frame.remove();
   forget();
 });

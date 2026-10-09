@@ -9,7 +9,8 @@
   --empty: rgba(255, 255, 255, .075);
   --miss: #ff9a8f;
   --plus: #8fe3ae;
-  --gold: #f5c542;
+  --thyme: #5edc1f;
+  --heart: #d42426;
   --cell: 34px;
 }
 
@@ -221,15 +222,45 @@ body {
 .msg.note { color: var(--muted); }
 .msg.pop { animation: msg-in .3s ease-out; }
 .msg.star {
-  margin: 2px 0; padding: 3px 8px 4px; border: 1.5px solid var(--gold); border-radius: 10px;
-  background: rgba(245, 197, 66, .07); box-shadow: 0 0 10px rgba(245, 197, 66, .18);
+  position: relative; margin: 2px 0; padding: 3px 8px 4px; border: 1.5px solid var(--frame); border-radius: 10px;
+  background: var(--tint); box-shadow: 0 0 10px var(--glow);
+}
+.msg.star-white { --frame: #fff; --tint: rgba(255, 255, 255, .06); --glow: rgba(255, 255, 255, .16); }
+.msg.star-thyme { --frame: var(--thyme); --tint: rgba(94, 220, 31, .07); --glow: rgba(94, 220, 31, .2); }
+.msg.star-heart {
+  --frame: var(--heart); --tint: rgba(212, 36, 38, .1); --glow: rgba(212, 36, 38, .25); padding-right: 28px;
+}
+.msg.star-heart::after {
+  content: "\2665"; position: absolute; right: 8px; top: 5px; opacity: 0;
+  color: var(--heart); font: 900 15px/1 "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+  animation: heart 15s ease-in-out var(--phase, 0s) infinite;
+}
+.msg.star-rainbow {
+  --tint: rgba(255, 255, 255, .05); --glow: rgba(255, 255, 255, .1); padding: 4.5px 9.5px 5.5px; border: 0;
+}
+.msg.star-rainbow::before {
+  content: ""; position: absolute; inset: 0; border: 1.5px solid transparent; border-radius: inherit;
+  -webkit-mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000);
+  -webkit-mask-composite: xor; mask-composite: exclude;
 }
 @keyframes msg-in { from { transform: translateY(10px); opacity: 0; } }
+@keyframes heart {
+  0%, 86%, 100% { opacity: 0; transform: translateY(4px) scale(.3); }
+  88.5% { opacity: 1; transform: scale(1.25); }
+  90.5% { opacity: 1; transform: scale(1); }
+  92.5% { opacity: 1; transform: scale(1.2); }
+  96% { opacity: 1; transform: scale(1); }
+}
 
-.rainbow, .list li.first .name.rainbow {
+.rainbow, .msg.star-rainbow::before {
   background: linear-gradient(90deg, #ff6b6b, #ffb547, #f2e96e, #7be3a0, #6ec3ff, #b79bff, #ff8fd0, #ff6b6b)
     0 0 / 120px 100%;
+  animation: rainbow 2.4s linear var(--phase, 0s) infinite;
+}
+.rainbow, .list li.first .name.rainbow {
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-  animation: rainbow 2.4s linear infinite;
 }
 @keyframes rainbow { to { background-position: 120px 0; } }
+.white, .list li.first .name.white { color: #fff; }
+.thyme, .list li.first .name.thyme { color: var(--thyme); }
+.heart, .list li.first .name.heart { color: var(--heart); }

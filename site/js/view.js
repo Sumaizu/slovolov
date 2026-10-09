@@ -9,7 +9,7 @@ const SIDE = { height: 664, rules: 159, row: 24, frame: 42, gap: 12 };
 const TOP_ROWS = 10;
 const LONG_WORD = 6;
 const FINAL_SECONDS = 3;
-const RAINBOW_MS = 2400;
+const CYCLES = new Map([['rainbow', 2400], ['heart', 15000]]);
 const TITLE = 'СЛОВОЛОВ';
 const REASONS = { all: 'Всё угадано!', hints: 'Раунд окончен', time: 'Время вышло', skip: 'Раунд окончен' };
 const NICK_COLORS = ['#ff8f85', '#ffb547', '#f2dd6e', '#8fe3ae', '#7fd4ff', '#b7a6ff', '#ff9ad5', '#8fe0d2'];
@@ -55,8 +55,9 @@ function nickColor(message) {
   return 'rgb(' + rgb.join(',') + ')';
 }
 
-function syncRainbow(event) {
-  if (event.animationName === 'rainbow') event.target.style.animationDelay = -(Date.now() % RAINBOW_MS) + 'ms';
+function keepInStep(event) {
+  const cycle = CYCLES.get(event.animationName);
+  if (cycle) event.target.style.setProperty('--phase', -(Date.now() % cycle) + 'ms');
 }
 
 export function layout(lengths, width, height) {
@@ -100,7 +101,7 @@ export class View {
     this._lettersKey = '';
     this._slotKeys = [];
     this._listKeys = {};
-    this._stars = new Set();
+    this._stars = new Map();
     this._starsKey = '';
     this._cues = [];
     this._feedRows = new Map();
@@ -109,7 +110,7 @@ export class View {
     this._secondsLeft = null;
     this._countdownFrom = null;
     window.addEventListener('resize', () => this._fitStage());
-    document.addEventListener('animationstart', syncRainbow);
+    document.addEventListener('animationstart', keepInStep);
     this._fitStage();
     setInterval(() => this.tick(), 250);
   }
@@ -241,17 +242,17 @@ export class View {
     play(name, this.settings.volume);
   }
 
-  _setStars(names) {
-    const key = (names || []).join(' ');
+  _setStars(stars) {
+    const key = JSON.stringify(stars || []);
     if (key === this._starsKey) return;
     this._starsKey = key;
-    this._stars = new Set(names || []);
+    this._stars = new Map(stars || []);
     this._listKeys = {};
     this._feedStale = true;
   }
 
-  _isStar(name) {
-    return Boolean(name) && this._stars.has(String(name).toLowerCase());
+  _starOf(name) {
+    return this._stars.get(String(name || '').toLowerCase()) || '';
   }
 
   _redrawFeed() {
@@ -367,7 +368,8 @@ export class View {
     const cut = total > limit;
     const shown = rows.slice(0, cut ? limit - 1 : limit);
     shown.forEach((row, i) => {
-      const name = el('span', this._isStar(row.name) ? 'name rainbow' : 'name', row.name);
+      const star = this._starOf(row.name);
+      const name = el('span', star ? 'name ' + star : 'name', row.name);
       const item = el('li', i === 0 ? 'first' : '');
       item.append(el('span', 'place', i + 1), name, el('span', 'points', points(row)));
       list.append(item);
@@ -432,9 +434,10 @@ export class View {
   }
 
   _messageRow(message, fresh) {
-    const star = message.star === true;
-    const row = el('div', 'msg' + (message.pts ? ' hit' : '') + (star ? ' star' : '') + (fresh ? ' pop' : ''));
-    const nick = el('b', star ? 'rainbow' : '', message.user);
+    const star = message.star || '';
+    const marks = (message.pts ? ' hit' : '') + (star ? ' star star-' + star : '') + (fresh ? ' pop' : '');
+    const row = el('div', 'msg' + marks);
+    const nick = el('b', star, message.user);
     if (!star) nick.style.color = nickColor(message);
     const text = el('span', 'text');
     this._fillText(text, message);

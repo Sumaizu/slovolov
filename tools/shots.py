@@ -35,13 +35,12 @@ def shoot_overlay(browser, base, out, query=""):
 
 
 def shoot_page(browser, base, out):
-    browser.set_size(1280, 720)
+    browser.set_size(1280, 760)
     browser.navigate(f"{base}/index.html")
     browser.wait_for(PAGE_READY, 30)
-    height = browser.evaluate("Math.ceil(document.documentElement.scrollHeight)")
-    browser.set_size(1280, int(height))
-    time.sleep(1.0)
+    browser.evaluate("document.getElementById('toggle-link').click()")
     browser.evaluate("document.getElementById('link').value = 'https://gamesonstream.ru/slovolov/overlay.html'")
+    time.sleep(1.0)
     browser.screenshot(out)
 
 
