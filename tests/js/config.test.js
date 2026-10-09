@@ -6,7 +6,7 @@ test('настройки: значения по умолчанию', () => {
   eq(clean(null), DEFAULTS);
   eq(clean('мусор'), DEFAULTS);
   eq(clean([1, 2]), DEFAULTS);
-  eq([DEFAULTS.pause, DEFAULTS.hint_every, DEFAULTS.round_time], [20, 10, 0]);
+  eq([DEFAULTS.pause, DEFAULTS.hint_every, DEFAULTS.round_time, DEFAULTS.shuffle_every], [20, 10, 0, 30]);
   eq([DEFAULTS.base_min, DEFAULTS.base_max, DEFAULTS.extra_letters, DEFAULTS.min_len], [5, 8, 2, 4]);
   eq([DEFAULTS.max_words, DEFAULTS.min_words, DEFAULTS.sound, DEFAULTS.volume], [45, 6, true, 100]);
 });
@@ -33,6 +33,13 @@ test('настройки: числа зажаты в пределы', () => {
   eq(clean({ extra_letters: -1 }).extra_letters, 0);
 });
 
+test('настройки: перемешивание — выключено нулём, иначе не чаще раза в пять секунд', () => {
+  eq([0, 1, 5, 45, 9999, 'часто', null].map((value) => clean({ shuffle_every: value }).shuffle_every),
+    [0, 5, 5, 45, 600, DEFAULTS.shuffle_every, DEFAULTS.shuffle_every]);
+  eq(toQuery({ shuffle_every: 0 }), 'shuffle_every=0');
+  eq(fromQuery('?shuffle_every=60').shuffle_every, 60);
+});
+
 test('настройки: негодные значения заменяются обычными', () => {
   const s = clean({ pause: 'много', accent: 'красный', min_len: null, extra_letters: 'много', hint_every: true,
     volume: 'тихо', reset_mode: 'иногда' });
@@ -54,7 +61,7 @@ test('настройки: расписание сброса счёта', () => {
 
 test('настройки: убранные и чужие ключи отбрасываются', () => {
   const s = clean({ ignore: ['bot'], blocked: ['кот'], stars: ['kto_ugodno'], difficulty: 'hard', bonus: false,
-    cooldown: 5, auto_next: false, shuffle_every: 0, top_size: 3, autostart: 'off', port: 9000, 'лишнее': 1 });
+    cooldown: 5, auto_next: false, top_size: 3, autostart: 'off', port: 9000, 'лишнее': 1 });
   eq(s, DEFAULTS);
 });
 
@@ -68,7 +75,8 @@ test('ссылка: в неё попадает только то, что отл�
 
 test('ссылка: настройки возвращаются из неё теми же', () => {
   const settings = clean({ channel: 'someone', pause: 12, base_min: 6, base_max: 9, extra_letters: 3, min_len: 3,
-    max_words: 30, min_words: 3, round_time: 300, hint_every: 0, chat_commands: false, reset_mode: 'timer',
+    max_words: 30, min_words: 3, round_time: 300, hint_every: 0, shuffle_every: 0, chat_commands: false,
+    reset_mode: 'timer',
     reset_hours: 3, sound: false, volume: 35, accent: '#3fa7ff', webcam: false, chat: false, side: false, bg: false });
   eq(fromQuery('?' + toQuery(settings)), settings);
   eq(fromQuery(''), DEFAULTS);

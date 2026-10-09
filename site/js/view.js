@@ -87,8 +87,8 @@ export function sideRows(roundCount, totalCount, capacity) {
 }
 
 export class View {
-  constructor({ still = false } = {}) {
-    this.still = still;
+  constructor() {
+    this.still = false;
     this.settings = null;
     this.state = null;
     this.offset = 0;
@@ -111,7 +111,18 @@ export class View {
     window.addEventListener('resize', () => this._fitStage());
     document.addEventListener('animationstart', syncRainbow);
     this._fitStage();
-    if (!still) setInterval(() => this.tick(), 250);
+    setInterval(() => this.tick(), 250);
+  }
+
+  setStill(still) {
+    this.still = still;
+    this._animate = false;
+    this._previous = '';
+    this._roundKey = '';
+    this._lettersKey = '';
+    this._listKeys = {};
+    this._feedStale = true;
+    this._cues = [];
   }
 
   use(settings) {
@@ -126,7 +137,6 @@ export class View {
     body.classList.toggle('noside', !settings.side);
     body.classList.toggle('nobg', !settings.bg);
     this._paintRules();
-    this._roundKey = '';
     this._listKeys = {};
   }
 
@@ -149,7 +159,7 @@ export class View {
     $('card').classList.toggle('results', over);
     $('head').hidden = $('play').hidden = waiting;
     $('lobby').hidden = !waiting;
-    const roundKey = waiting ? '' : state.round + ':' + state.words.length + ':' + state.started;
+    const roundKey = waiting ? '' : [state.round, state.started].concat(state.words.map((word) => word.len)).join(':');
     if (roundKey !== this._roundKey) {
       this._roundKey = roundKey;
       this._lettersKey = '';
@@ -179,6 +189,7 @@ export class View {
   }
 
   tick() {
+    if (this.still) return;
     this._paintClock();
     this._playCues();
   }

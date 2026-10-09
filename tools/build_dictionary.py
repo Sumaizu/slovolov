@@ -125,6 +125,7 @@ def main():
     added = [key for key in list(well_known) + list(more) if key not in spelling]
     for key, (word, _) in list(well_known.items()) + list(more.items()):
         spelling.setdefault(key, word)
+    excluded = [key for key in read_word_list("not_words.txt") if spelling.pop(key, None)]
 
     rows = []
     for key, word in spelling.items():
@@ -144,6 +145,7 @@ def main():
 
     print(f"готово: {OUTPUT} — {len(rows)} слов")
     print(f"  добавлено из своих списков: {len(set(added))}; отброшено не-существительных: {rejected}")
+    print(f"  убрано уменьшительных и прилагательных: {len(excluded)}")
     for threshold in (5, 1.5, 0.5):
         print(f"  оценка от {threshold}: {sum(score >= threshold for _, score in rows)} слов")
 

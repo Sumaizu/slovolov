@@ -125,7 +125,7 @@ body {
 }
 
 .words {
-  min-width: 0; min-height: 0; overflow: hidden;
+  min-width: 0; min-height: 0;
   display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--rows, 10), var(--cell));
   justify-content: center; align-content: start;
   gap: calc(var(--cell) * .2) calc(var(--cell) * 1.5);
@@ -141,8 +141,17 @@ body {
 .slot.closed span { background: rgba(255, 255, 255, .15); color: var(--muted); }
 .slot.missed span { background: transparent; color: var(--miss); box-shadow: inset 0 0 0 2px rgba(255, 154, 143, .5); }
 .slot.pop span { animation: cell-flip .42s ease-out backwards; animation-delay: calc(var(--j) * 40ms); }
+.slot.open.pop span {
+  animation: cell-flip .42s ease-out backwards, cell-glow 1.8s ease-out; animation-delay: calc(var(--j) * 40ms);
+}
 .slot span.hinted { animation: hint-in 1.4s ease-out; }
 @keyframes cell-flip { from { transform: rotateX(90deg); } 60% { transform: rotateX(-12deg) scale(1.08); } }
+@keyframes cell-glow {
+  from, 55% {
+    background: var(--accent); color: var(--accent-ink);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 calc(var(--cell) * .5) var(--accent);
+  }
+}
 @keyframes hint-in { from, 40% { background: var(--accent); color: var(--accent-ink); transform: scale(1.5); } }
 
 .lobby {

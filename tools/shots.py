@@ -22,22 +22,22 @@ CAMERA_PLACEHOLDER = """(() => {
   document.body.prepend(person);
 })()"""
 OVERLAY_READY = "window.slovolov && document.querySelectorAll('#words .slot').length ? 1 : 0"
-SETTINGS_READY = "document.querySelector('#summary:not(:empty)') ? 1 : 0"
+PAGE_READY = "document.getElementById('play') && !document.getElementById('play').disabled ? 1 : 0"
 
 
 def shoot_overlay(browser, base, out, query=""):
     browser.set_size(1280, 720)
-    browser.navigate(f"{base}/overlay.html?demo=1{'&' + query if query else ''}")
+    browser.navigate(f"{base}/overlay.html?embed=1{'&' + query if query else ''}")
     browser.wait_for(OVERLAY_READY, 30)
     browser.evaluate(CAMERA_PLACEHOLDER)
     time.sleep(0.5)
     browser.screenshot(out, transparent=True)
 
 
-def shoot_settings(browser, base, out):
+def shoot_page(browser, base, out):
     browser.set_size(1280, 720)
     browser.navigate(f"{base}/index.html")
-    browser.wait_for(SETTINGS_READY, 30)
+    browser.wait_for(PAGE_READY, 30)
     height = browser.evaluate("Math.ceil(document.documentElement.scrollHeight)")
     browser.set_size(1280, int(height))
     time.sleep(1.0)
@@ -46,7 +46,7 @@ def shoot_settings(browser, base, out):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Снимки оверлея и страницы настроек для README.")
+    parser = argparse.ArgumentParser(description="Снимки оверлея и главной страницы для README.")
     parser.add_argument("--out", default=str(DOCS), help="куда сохранить снимки (по умолчанию docs/)")
     out = Path(parser.parse_args().out)
     out.mkdir(parents=True, exist_ok=True)
@@ -56,7 +56,7 @@ def main():
         with Browser() as browser:
             shoot_overlay(browser, base, out / "overlay.png")
             shoot_overlay(browser, base, out / "overlay-compact.png", "chat=0&side=0")
-            shoot_settings(browser, base, out / "settings.png")
+            shoot_page(browser, base, out / "page.png")
     finally:
         server.shutdown()
         server.server_close()

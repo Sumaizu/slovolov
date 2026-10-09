@@ -335,6 +335,22 @@ test('буквы: перемешиваются раз в 30 секунд', () =>
   eq(types(events), ['countdown', 'round_start']);
 });
 
+test('буквы: как часто перемешивать, задают настройки; ноль — стоят на месте', () => {
+  const often = startRound({ settings: { hint_every: 0, shuffle_every: 10 } });
+  const first = often.game.snapshot().letters.join('');
+  often.clock.t += 9;
+  often.game.tick();
+  eq(often.game.snapshot().letters.join(''), first);
+  often.clock.t += 1;
+  often.game.tick();
+  no(often.game.snapshot().letters.join('') === first);
+  const never = startRound({ settings: { hint_every: 0, shuffle_every: 0 } });
+  const version = never.game.snapshot().version;
+  never.clock.t += 3600;
+  never.game.tick();
+  eq(never.game.snapshot().version, version);
+});
+
 test('буквы: после раунда стоят на месте', () => {
   const { game, clock } = startRound({ settings: { hint_every: 0, pause: 600 } });
   game.skip();
@@ -387,6 +403,55 @@ test('команды: выключаются настройкой', () => {
   const { game } = startRound({ settings: { chat_commands: false } });
   eq(game.feed('Модер', '!словолов-раунд', { mod: true }), null);
   eq(game.snapshot().state, 'playing');
+});
+
+test('настройки на ходу: подсказки, перемешивание и лимит времени действуют сразу', () => {
+  const { game, clock, events } = startRound({ settings: { hint_every: 0, shuffle_every: 0 } });
+  const start = clock.t, letters = game.snapshot().letters.join('');
+  clock.t += 20;
+  game.configure(clean({ ...ONLY_METLA, hint_every: 7, shuffle_every: 9, round_time: 60 }));
+  const state = game.snapshot();
+  eq([state.hint_every, state.hint_at, state.ends], [7, clock.t + 7, start + 60]);
+  clock.t += 7;
+  game.tick();
+  eq(last(events).type, 'hint');
+  clock.t += 2;
+  game.tick();
+  no(game.snapshot().letters.join('') === letters);
+  game.configure(clean({ ...ONLY_METLA, hint_every: 0, shuffle_every: 0, round_time: 60 }));
+  eq([game.snapshot().hint_at, game.snapshot().ends], [null, start + 60]);
+  clock.t = start + 60;
+  game.tick();
+  eq([game.snapshot().state, game.snapshot().results.reason], ['results', 'time']);
+});
+
+test('настройки на ходу: слова и пауза — со следующего раунда, команды — сразу', () => {
+  const { game, clock } = startRound({ settings: { pause: 12 } });
+  game.configure(clean({ ...ONLY_METLA, pause: 5, min_len: 4, chat_commands: false }));
+  eq(game.snapshot().total, 5);
+  eq(game.feed('Модер', '!словолов-раунд', { mod: true }), null);
+  game.skip();
+  eq(game.snapshot().results.next_at, clock.t + 5);
+  game.configure(clean({ ...ONLY_METLA, pause: 5, min_len: 4, min_words: 2 }));
+  clock.t += 5;
+  game.tick();
+  const state = game.snapshot();
+  eq([state.state, state.round], ['playing', 2]);
+  ok(state.words.every((w) => w.len >= 4));
+});
+
+test('настройки на ходу: новое расписание сброса не стирает счёт задним числом', () => {
+  const storage = memoryStorage();
+  const { game, clock } = makeGame({ at: local(2026, 9, 5, 12), scores: new Scores(storage, 'k'),
+    settings: { reset_mode: 'timer', reset_hours: 100 } });
+  game.scores.add('Вася', 5);
+  clock.t = local(2026, 9, 8, 12);
+  game.configure(clean({ ...ONLY_METLA, reset_mode: 'timer', reset_hours: 1 }));
+  game.tick();
+  eq(game.snapshot().players, 1);
+  clock.t += 3600;
+  game.tick();
+  eq(game.snapshot().players, 0);
 });
 
 test('счёт: сброс не трогает итог раунда', () => {

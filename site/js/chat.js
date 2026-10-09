@@ -124,6 +124,15 @@ export class TwitchChat {
     this._set('off', 'остановлено');
   }
 
+  setChannel(channel) {
+    channel = String(channel || '').toLowerCase();
+    if (channel === this.channel) return;
+    this.channel = channel;
+    this.status = Object.assign({}, this.status, { messages: 0, roomId: '' });
+    this._backoff = 2;
+    if (this._running) this._connect();
+  }
+
   _set(state, text, extra = {}) {
     this.status = Object.assign({}, this.status, { state, text, channel: this.channel }, extra);
     if (this.onStatus) this.onStatus(this.status);

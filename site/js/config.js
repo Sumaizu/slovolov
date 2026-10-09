@@ -4,6 +4,7 @@ export const DEFAULTS = {
   pause: 20,
   hint_every: 10,
   round_time: 0,
+  shuffle_every: 30,
   base_min: 5,
   base_max: 8,
   extra_letters: 2,
@@ -23,6 +24,8 @@ export const DEFAULTS = {
 };
 export const RESET_MODES = ['never', 'day', 'week', 'month', 'timer'];
 export const MAX_WORDS = 45;
+
+const SHUFFLE_MIN = 5;
 
 const LOGIN_RE = /^[a-z0-9_]{1,25}$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -53,6 +56,8 @@ export function clean(raw) {
   s.pause = int(raw.pause, d.pause, 3, 3600);
   s.hint_every = int(raw.hint_every, d.hint_every, 0, 3600);
   s.round_time = int(raw.round_time, d.round_time, 0, 7200);
+  s.shuffle_every = int(raw.shuffle_every, d.shuffle_every, 0, 600);
+  if (s.shuffle_every) s.shuffle_every = Math.max(SHUFFLE_MIN, s.shuffle_every);
   s.base_min = int(raw.base_min, d.base_min, 4, 12);
   s.base_max = Math.max(s.base_min, int(raw.base_max, d.base_max, 4, 12));
   s.extra_letters = int(raw.extra_letters, d.extra_letters, 0, 4);

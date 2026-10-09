@@ -41,8 +41,8 @@ function forget() {
 }
 
 const overlay = (query = '') => open('overlay.html' + (query ? '?' + query : ''), (w) => w.slovolov && w.slovolov.game);
-const demo = (query = '') => open('overlay.html?demo=1' + (query ? '&' + query : ''),
-  (w) => w.slovolov && all(w, '#words .slot').length);
+const embedded = (query = '') => open('overlay.html?embed=1' + (query ? '&' + query : ''),
+  (w) => w.slovolov && w.slovolov.game);
 
 async function playing(query = '') {
   const frame = await overlay(query);
@@ -62,6 +62,27 @@ function noImages(w) {
 
 function showSource(w, visible) {
   w.dispatchEvent(new w.CustomEvent('obsSourceVisibleChanged', { detail: { visible } }));
+}
+
+function fakeSockets(chat) {
+  const sockets = [];
+  chat.Socket = class {
+    constructor(url) {
+      this.url = url;
+      this.sent = [];
+      this.closed = false;
+      sockets.push(this);
+    }
+
+    send(line) {
+      this.sent.push(line);
+    }
+
+    close() {
+      this.closed = true;
+    }
+  };
+  return sockets;
 }
 
 const EMOTE_REPLIES = {
@@ -407,31 +428,96 @@ test('оверлей: ник автора переливается везде в
   forget();
 });
 
-test('пример: неподвижная картинка с выдуманными словами, чатом и счётом', async () => {
-  const frame = await demo('min_len=4&hint_every=10');
-  const w = frame.contentWindow;
-  eq(w.slovolov.game, undefined);
+
+test('оверлей: угаданное слово подсвечивается, а поле слов не обрезает подсветку и буквы подсказок', async () => {
+  forget();
+  const { frame, w, game } = await playing('hint_every=0');
+  eq(w.getComputedStyle(element(w, 'words')).overflow, 'visible');
+  const animations = (selector) => w.getComputedStyle(w.document.querySelector(selector)).animationName;
+  game.feed('Вася', game.answers().words[0].word);
+  await until(() => w.document.querySelector('#words .slot.open.pop'), 'слово открылось');
+  ok(animations('#words .slot.open span').includes('cell-glow'));
+  game._hint(game.clock());
+  await until(() => w.document.querySelector('#words span.hinted'), 'буква подсказки');
+  eq(animations('#words span.hinted'), 'hint-in');
+  game.skip();
+  await until(() => w.document.querySelector('#words .slot.missed.pop'), 'неугаданные слова открыты');
+  eq(animations('#words .slot.missed span'), 'cell-flip');
+  frame.remove();
+});
+
+test('встроенный оверлей: пока игру не начали — неподвижный пример', async () => {
+  forget();
+  const frame = await embedded('min_len=4&hint_every=10');
+  const w = frame.contentWindow, api = w.slovolov;
+  eq([api.game.state, api.chat.status.state], ['stopped', 'off']);
   const chat = element(w, 'chat').innerText;
   ok(chat.includes('уже было') && chat.includes('вне клеток') && chat.includes('+4'), chat);
   ok(all(w, '#list-round li').length >= 3 && all(w, '#list-total li').length >= 10);
   ok(element(w, 'rules').innerText.includes('От 4 букв') && element(w, 'rules').innerText.includes('раз в 10 с'));
   ok(all(w, '#words .slot').every((slot) => slot.children.length >= 4));
+  eq([all(w, '#words .slot').length, all(w, '#letters .tile').length], [22, 9]);
   const label = element(w, 'label').textContent;
   await wait(600);
   eq(element(w, 'label').textContent, label);
-  w.slovolov.show({ chat: false, side: false, max_words: 5, accent: '#3fa7ff' });
+  eq(api.view.heard, []);
+  api.apply({ chat: false, side: false, max_words: 5, extra_letters: 0, accent: '#3fa7ff' });
   const classes = w.document.body.classList;
   ok(classes.contains('nochat') && classes.contains('noside'));
-  eq(all(w, '#words .slot').length, 5);
+  eq([all(w, '#words .slot').length, all(w, '#letters .tile').length], [5, 7]);
   eq(w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
+  showSource(w, true);
+  eq(api.game.state, 'stopped');
   frame.remove();
 });
 
-const exampleOf = (w) => element(w, 'preview').contentWindow;
-const settingsPage = (query = '') => open('index.html' + query,
-  (w) => exampleOf(w).slovolov && element(w, 'link').value);
+test('встроенный оверлей: «начать» — настоящая игра, настройки меняются на ходу, «остановить» — пример', async () => {
+  forget();
+  const frame = await embedded();
+  const w = frame.contentWindow, api = w.slovolov;
+  const sockets = fakeSockets(api.chat);
+  api.apply({ channel: 'some_channel' });
+  eq(sockets.length, 0);
+  api.start();
+  eq([api.game.state, sockets.length, sockets[0].closed], ['countdown', 1, false]);
+  await until(() => !element(w, 'lobby').hidden, 'отсчёт на экране');
+  ok(element(w, 'chat').innerText.includes('пока тихо'));
+  api.game.tick(api.game.startsAt);
+  await until(() => element(w, 'lobby').hidden && all(w, '#words .slot').length, 'раунд на экране');
+  const word = api.game.answers().words[0].word;
+  api.chat.onMessage('Вася', word, false, {});
+  await until(() => all(w, '#words .slot.open').length === 1, 'слово открылось');
+  const opened = w.document.querySelector('#words .slot.open');
+  await until(() => api.view.heard.length === 2, 'звук угаданного слова');
+  api.apply({ channel: 'some_channel', side: false, hint_every: 77, shuffle_every: 0 });
+  eq([api.game.state, api.game.s.hint_every, api.game.snapshot().round], ['playing', 77, 1]);
+  await until(() => w.document.body.classList.contains('noside'), 'счёт скрыт на ходу');
+  await wait(300);
+  eq([all(w, '#words .slot.open').length, w.document.querySelector('#words .slot.open') === opened], [1, true]);
+  eq(api.view.heard.length, 2);
+  showSource(w, false);
+  eq(api.game.state, 'playing');
+  api.apply({ channel: 'other_channel' });
+  eq([sockets.length, sockets[0].closed, api.chat.channel, api.game.snapshot().top], [2, true, 'other_channel', []]);
+  api.stop();
+  eq([api.game.state, api.chat.status.state, sockets[1].closed], ['stopped', 'off', true]);
+  await until(() => element(w, 'chat').innerText.includes('уже было'), 'снова пример');
+  api.start();
+  eq([api.game.state, sockets.length], ['countdown', 3]);
+  api.stop();
+  frame.remove();
+  forget();
+});
+
+const gameOf = (w) => element(w, 'game').contentWindow;
+const mainPage = (query = '') => open('index.html' + query,
+  (w) => gameOf(w).slovolov && gameOf(w).slovolov.game && !element(w, 'play').disabled);
 const link = (w) => element(w, 'link').value;
 const query = (w) => (link(w).split('?')[1] || '');
+const NUMBER_FIELDS = ['pause', 'hint_every', 'shuffle_every', 'round_time', 'base_min', 'base_max', 'extra_letters',
+  'min_len', 'max_words', 'min_words', 'volume'];
+const RECOMMENDED = ['20', '10', '30', '0', '5', '8', '2', '4', '45', '6', '100'];
+const shownNumbers = (w) => NUMBER_FIELDS.map((key) => element(w, 's-' + key).value);
 
 function type(w, id, value) {
   const field = element(w, id);
@@ -441,123 +527,135 @@ function type(w, id, value) {
   field.dispatchEvent(new w.Event('change', { bubbles: true }));
 }
 
-test('настройки: ссылка обновляется по кнопке «Сохранить»', async () => {
+test('страница: при первом заходе — пример, рекомендуемые настройки и готовая ссылка для OBS', async () => {
   forget();
-  const frame = await settingsPage();
-  const w = frame.contentWindow;
+  const frame = await mainPage();
+  const w = frame.contentWindow, game = gameOf(w);
   ok(link(w).endsWith('/site/overlay.html'), link(w));
-  ok(element(w, 'status').textContent.includes('канал'));
-  type(w, 's-channel', 'https://twitch.tv/Some_One');
-  type(w, 's-extra_letters', '3');
-  type(w, 's-hint_every', '15');
-  eq(element(w, 's-channel').value, 'some_one');
-  eq(query(w), '');
-  ok(element(w, 'link').classList.contains('stale'));
-  ok(element(w, 'status').textContent.includes('Сохранить'));
-  element(w, 'save').click();
-  eq(query(w), 'channel=some_one&hint_every=15&extra_letters=3');
-  no(element(w, 'link').classList.contains('stale'));
-  ok(element(w, 'status').classList.contains('ok'));
-  ok(localStorage.getItem('slovolov.settings').includes('some_one'));
-  w.document.querySelector('[data-webcam="0"]').click();
-  ok(w.document.querySelector('[data-webcam="0"]').classList.contains('on'));
-  type(w, 'hide-side', true);
-  type(w, 'hide-bg', true);
-  eq(query(w), 'channel=some_one&hint_every=15&extra_letters=3');
-  element(w, 'save').click();
-  eq(query(w), 'channel=some_one&hint_every=15&extra_letters=3&webcam=0&side=0&bg=0');
-  element(w, 'defaults').click();
-  element(w, 'save').click();
-  eq(query(w), 'channel=some_one');
-  frame.remove();
-  forget();
-});
-
-test('настройки: при первом заходе стоят рекомендуемые, кнопка к ним возвращает', async () => {
-  forget();
-  const frame = await settingsPage();
-  const w = frame.contentWindow;
-  const numbers = ['pause', 'hint_every', 'round_time', 'base_min', 'base_max', 'extra_letters', 'min_len',
-    'max_words', 'min_words', 'volume'];
-  const shown = () => numbers.map((key) => element(w, 's-' + key).value);
-  const recommended = ['20', '10', '0', '5', '8', '2', '4', '45', '6', '100'];
-  eq(shown(), recommended);
-  ok(element(w, 's-sound').checked);
-  type(w, 's-channel', 'some_one');
-  type(w, 's-pause', '55');
-  type(w, 's-min_len', '3');
-  type(w, 's-volume', '40');
-  type(w, 'hide-chat', true);
-  eq(element(w, 'defaults').textContent, 'Рекомендуемые настройки');
-  element(w, 'defaults').click();
-  eq(shown(), recommended);
-  eq([element(w, 'hide-chat').checked, element(w, 's-channel').value], [false, 'some_one']);
-  frame.remove();
-  forget();
-});
-
-test('настройки: автор в шапке справа, чат и вид — в левом столбце, команды — в столбик', async () => {
-  forget();
-  const frame = await settingsPage();
-  const w = frame.contentWindow;
-  const place = (node) => node.getBoundingClientRect();
+  ok(element(w, 'link-status').textContent.includes('канал'));
+  ok(element(w, 'status').textContent.includes('пример'));
+  eq([game.slovolov.game.state, all(game, '#words .slot').length], ['stopped', 22]);
+  eq(element(w, 'play').textContent, 'Начать');
+  eq(shownNumbers(w), RECOMMENDED);
+  ok(element(w, 's-sound').checked && element(w, 's-chat_commands').checked);
+  eq(w.document.getElementById('save'), null);
   const author = w.document.querySelector('.author a');
   eq([author.textContent, author.getAttribute('href')], ['Sumaizu', 'https://twitch.tv/sumaizu']);
-  const title = place(w.document.querySelector('h1')), credit = place(author);
+  frame.remove();
+  forget();
+});
+
+test('страница: кнопка «Настройки» открывает панель рядом с игрой', async () => {
+  forget();
+  const frame = await mainPage();
+  const w = frame.contentWindow;
+  const place = (node) => node.getBoundingClientRect();
+  const toggle = element(w, 'toggle-settings'), panel = element(w, 'settings'), screen = element(w, 'game');
+  ok(panel.hidden);
+  eq(toggle.getAttribute('aria-expanded'), 'false');
+  const wide = place(screen).width;
+  toggle.click();
+  no(panel.hidden);
+  eq(toggle.getAttribute('aria-expanded'), 'true');
+  ok(place(panel).left >= place(screen).right && place(screen).width < wide);
+  ok(Math.abs(place(screen).width / place(screen).height - 16 / 9) < 0.02);
+  const title = place(w.document.querySelector('h1')), credit = place(w.document.querySelector('.author a'));
   ok(credit.left > title.right + 300 && credit.top < title.bottom && credit.bottom > title.top);
-  const right = place(element(w, 's-pause')).left;
-  for (const id of ['link', 'preview', 's-channel', 's-chat_commands', 's-accent', 'hide-chat']) {
-    ok(place(element(w, id)).left < right - 200, id);
+  for (const id of ['s-accent', 'hide-chat', 'hide-side', 'hide-bg', 'defaults']) {
+    ok(place(element(w, id)).left >= place(panel).left && place(element(w, id)).right <= place(panel).right, id);
   }
-  for (const id of ['s-hint_every', 's-base_min', 's-reset_mode', 's-volume', 'defaults']) {
-    ok(place(element(w, id)).left >= right - 50, id);
-  }
-  const webcamSwitch = place(w.document.querySelector('.switch'));
-  for (const id of ['hide-chat', 'hide-side', 'hide-bg']) ok(place(element(w, id)).left > webcamSwitch.right, id);
-  ok(place(element(w, 'hide-chat')).top < webcamSwitch.top && place(element(w, 'hide-bg')).top < webcamSwitch.bottom);
+  ok(place(w.document.querySelector('.switch')).height < 48);
   const commands = Array.from(w.document.querySelectorAll('.check code'));
   eq(commands.map((node) => node.textContent), ['!словолов-раунд', '!словолов-сброс']);
   ok(place(commands[1]).top > place(commands[0]).bottom - 2);
+  toggle.click();
+  ok(panel.hidden);
+  eq(Math.round(place(screen).width), Math.round(wide));
   frame.remove();
   forget();
 });
 
-test('настройки: запоминаются между заходами, адрес страницы важнее запомненного', async () => {
+test('страница: «Начать» запускает игру в браузере, «Остановить» возвращает пример', async () => {
+  forget();
+  const frame = await mainPage();
+  const w = frame.contentWindow, game = gameOf(w), api = game.slovolov;
+  const sockets = fakeSockets(api.chat);
+  element(w, 'play').click();
+  eq([api.game.state, sockets.length], ['stopped', 0]);
+  ok(element(w, 'status').classList.contains('warn') && element(w, 'status').textContent.includes('канал'));
+  eq(w.document.activeElement, element(w, 's-channel'));
+  element(w, 's-channel').value = 'https://twitch.tv/Some_One';
+  element(w, 'play').click();
+  eq([element(w, 's-channel').value, query(w), api.game.state, sockets.length], ['some_one', 'channel=some_one',
+    'countdown', 1]);
+  eq(element(w, 'play').textContent, 'Остановить');
+  await until(() => !element(game, 'lobby').hidden, 'отсчёт в рамке');
+  api.game.tick(api.game.startsAt);
+  await until(() => all(game, '#words .slot').length && element(game, 'lobby').hidden, 'раунд в рамке');
+  await until(() => element(w, 'status').textContent.includes('Игра идёт'), 'страница знает, что игра идёт');
+  api.chat.onMessage('Вася', api.game.answers().words[0].word, false, {});
+  await until(() => all(game, '#words .slot.open').length === 1, 'слово открылось');
+  element(w, 'play').click();
+  eq([api.game.state, element(w, 'play').textContent, sockets[0].closed], ['stopped', 'Начать', true]);
+  await until(() => element(game, 'chat').innerText.includes('уже было'), 'снова пример');
+  ok(element(w, 'status').textContent.includes('пример'));
+  frame.remove();
+  forget();
+});
+
+test('страница: настройки действуют сразу — и на игру, и на ссылку для OBS', async () => {
+  forget();
+  const frame = await mainPage();
+  const w = frame.contentWindow, game = gameOf(w), api = game.slovolov;
+  fakeSockets(api.chat);
+  type(w, 's-channel', 'some_one');
+  element(w, 'play').click();
+  api.game.tick(api.game.startsAt);
+  await until(() => all(game, '#words .slot').length && element(game, 'lobby').hidden, 'раунд в рамке');
+  element(w, 'toggle-settings').click();
+  type(w, 's-hint_every', '25');
+  type(w, 's-shuffle_every', '0');
+  eq([api.game.s.hint_every, api.game.s.shuffle_every, api.game.state, api.game.snapshot().round],
+    [25, 0, 'playing', 1]);
+  eq(query(w), 'channel=some_one&hint_every=25&shuffle_every=0');
+  eq(JSON.parse(localStorage.getItem('slovolov.settings')).hint_every, 25);
+  type(w, 'hide-chat', true);
+  w.document.querySelector('[data-webcam="0"]').click();
+  ok(w.document.querySelector('[data-webcam="0"]').classList.contains('on'));
+  await until(() => game.document.body.classList.contains('nochat'), 'чат скрыт на ходу');
+  eq(query(w), 'channel=some_one&hint_every=25&shuffle_every=0&webcam=0&chat=0');
+  type(w, 's-shuffle_every', '2');
+  eq([element(w, 's-shuffle_every').value, api.game.s.shuffle_every], ['5', 5]);
+  element(w, 'defaults').click();
+  eq(shownNumbers(w), RECOMMENDED);
+  eq([query(w), element(w, 's-channel').value, element(w, 'hide-chat').checked, api.game.s.hint_every],
+    ['channel=some_one', 'some_one', false, 10]);
+  eq(api.game.state, 'playing');
+  frame.remove();
+  forget();
+});
+
+test('страница: настройки запоминаются между заходами, адрес страницы важнее запомненного', async () => {
   forget();
   localStorage.setItem('slovolov.settings', JSON.stringify({ pause: 12, extra_letters: 3, chat: false }));
-  let frame = await settingsPage();
+  let frame = await mainPage();
   let w = frame.contentWindow;
   eq(query(w), 'pause=12&extra_letters=3&chat=0');
   eq([element(w, 's-pause').value, element(w, 's-extra_letters').value, element(w, 'hide-chat').checked],
     ['12', '3', true]);
+  ok(gameOf(w).document.body.classList.contains('nochat'));
+  eq(all(gameOf(w), '#letters .tile').length, 10);
   frame.remove();
-  frame = await settingsPage('?pause=45&min_len=3');
+  frame = await mainPage('?pause=45&min_len=3');
   w = frame.contentWindow;
   eq(query(w), 'pause=45&min_len=3');
   frame.remove();
   forget();
 });
 
-test('настройки: пример сразу показывает, что получится', async () => {
+test('страница: расписание сброса, звук и «Послушать»', async () => {
   forget();
-  const frame = await settingsPage();
-  const w = frame.contentWindow, example = exampleOf(w);
-  await until(() => all(example, '#words .slot').length === 22, 'пример на экране');
-  eq(example.slovolov.game, undefined);
-  type(w, 'hide-chat', true);
-  type(w, 's-max_words', '6');
-  type(w, 's-accent', '#3fa7ff');
-  await until(() => example.document.body.classList.contains('nochat'), 'чат скрыт в примере');
-  eq(all(example, '#words .slot').length, 6);
-  eq(example.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
-  eq(query(w), '');
-  frame.remove();
-  forget();
-});
-
-test('настройки: расписание сброса, звук и «Послушать»', async () => {
-  forget();
-  const frame = await settingsPage();
+  const frame = await mainPage();
   const w = frame.contentWindow;
   ok(element(w, 'reset-hour-field').hidden && element(w, 'reset-hours-field').hidden);
   type(w, 's-reset_mode', 'week');
@@ -567,34 +665,34 @@ test('настройки: расписание сброса, звук и «По�
   type(w, 's-sound', false);
   type(w, 's-volume', '35');
   eq(element(w, 'volume-text').textContent, '35%');
-  element(w, 'save').click();
   eq(query(w), 'reset_mode=week&reset_hour=9&sound=0&volume=35');
   type(w, 's-reset_mode', 'timer');
   ok(element(w, 'reset-hour-field').hidden);
   no(element(w, 'reset-hours-field').hidden);
   let volume = null;
-  exampleOf(w).slovolov.playSounds = (value) => { volume = value; };
+  gameOf(w).slovolov.playSounds = (value) => { volume = value; };
   element(w, 'listen').click();
   eq(volume, 35);
   frame.remove();
   forget();
 });
 
-test('настройки: под которые нет слов, не сохраняются', async () => {
+test('страница: настройки, под которые нет слов, не применяются', async () => {
   forget();
-  const frame = await settingsPage();
-  const w = frame.contentWindow;
-  await until(() => element(w, 'summary').textContent.includes('Главных слов'), 'подсчёт слов');
+  const frame = await mainPage();
+  const w = frame.contentWindow, api = gameOf(w).slovolov;
+  ok(element(w, 'summary').textContent.includes('Главных слов'));
   type(w, 's-base_min', '4');
   type(w, 's-base_max', '4');
   type(w, 's-max_words', '45');
+  const before = query(w);
   type(w, 's-min_words', '40');
-  await until(() => element(w, 'summary').textContent.includes('нет ни одного'), 'предупреждение');
-  ok(element(w, 'summary').classList.contains('bad'));
-  element(w, 'save').click();
-  ok(element(w, 'status').classList.contains('bad'));
-  eq(query(w), '');
-  eq(localStorage.getItem('slovolov.settings'), null);
+  ok(element(w, 'summary').classList.contains('bad') && element(w, 'summary').textContent.includes('не применены'));
+  eq([query(w), api.game.s.min_words, element(w, 's-min_words').value], [before, 6, '40']);
+  eq(JSON.parse(localStorage.getItem('slovolov.settings')).min_words, 6);
+  type(w, 's-min_words', '3');
+  no(element(w, 'summary').classList.contains('bad'));
+  eq(api.game.s.min_words, 3);
   frame.remove();
   forget();
 });

@@ -10,7 +10,7 @@ export const SMALL = {
   'крона': ['крона', 10.0], 'рок': ['рок', 15.0], 'акр': ['акр', 0.2],
   'полет': ['полёт', 40.0], 'плот': ['плот', 20.0], 'пот': ['пот', 20.0], 'лот': ['лот', 5.0],
 };
-export const PLAIN = { pause: 30, hint_every: 45, extra_letters: 0, min_len: 3, max_words: 20 };
+export const PLAIN = { pause: 30, hint_every: 45, shuffle_every: 30, extra_letters: 0, min_len: 3, max_words: 20 };
 export const ONLY_METLA = { ...PLAIN, base_min: 5, base_max: 5, min_words: 5 };
 export const METLA_WORDS = ['мат', 'мел', 'лёт', 'тема', 'метла'];
 

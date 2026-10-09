@@ -13,7 +13,7 @@ const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const UPDATE_CHECK_SECONDS = LOCAL ? 5 : 300;
 const RELOAD_PAUSE_SECONDS = LOCAL ? 0 : 600;
 const DICTIONARY_RETRY_SECONDS = 5;
-const DEMO = new URLSearchParams(location.search).get('demo') === '1';
+const EMBEDDED = new URLSearchParams(location.search).get('embed') === '1';
 
 const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 const fileUrl = (name) => new URL(name, location.href).href;
@@ -83,21 +83,18 @@ function watchUpdates(canReload) {
   setInterval(check, UPDATE_CHECK_SECONDS * 1000);
 }
 
-function showDemo(view) {
-  const show = (settings) => {
-    view.use(settings);
-    view.render(demoState(settings));
-  };
-  show(fromQuery(location.search));
-  window.slovolov = { show: (settings) => show(clean(settings)), playSounds: playAll };
-}
-
-async function runGame(view) {
-  const settings = fromQuery(location.search);
+async function run(view) {
+  let settings = fromQuery(location.search);
+  let live = !EMBEDDED;
+  const showExample = () => view.render(demoState(settings));
   view.use(settings);
+  view.setStill(!live);
+  if (!live) showExample();
+
   const dictionary = await loadDictionary();
-  const scores = new Scores(browserStorage(), 'slovolov.scores.' + (settings.channel || '_'));
-  const game = new Game(dictionary, settings, scores);
+  const storage = browserStorage();
+  const scoresFor = (channel) => new Scores(storage, 'slovolov.scores.' + (channel || '_'));
+  const game = new Game(dictionary, settings, scoresFor(settings.channel));
   const chat = new TwitchChat({
     channel: settings.channel,
     onMessage: (name, text, mod, details) => game.feed(name, text, Object.assign({ mod }, details)),
@@ -106,11 +103,11 @@ async function runGame(view) {
   });
   let queued = false;
   function refresh() {
-    if (queued) return;
+    if (queued || !live) return;
     queued = true;
     setTimeout(() => {
       queued = false;
-      view.render(Object.assign(game.snapshot(), { room_id: chat.status.roomId }));
+      if (live) view.render(Object.assign(game.snapshot(), { room_id: chat.status.roomId }));
     }, 0);
   }
   const restart = () => {
@@ -118,13 +115,43 @@ async function runGame(view) {
     game.open();
   };
   game.onchange = refresh;
-  chat.start();
   setInterval(() => game.tick(), 250);
+
+  window.slovolov = {
+    game,
+    chat,
+    view,
+    playSounds: playAll,
+    apply(next) {
+      next = clean(next);
+      if (next.channel !== settings.channel) {
+        chat.setChannel(next.channel);
+        game.scores = scoresFor(next.channel);
+      }
+      settings = next;
+      game.configure(settings);
+      view.use(settings);
+      if (live) refresh();
+      else showExample();
+    },
+    start() {
+      live = true;
+      view.setStill(false);
+      chat.start();
+      restart();
+    },
+    stop() {
+      live = false;
+      game.stop();
+      chat.stop();
+      view.setStill(true);
+      showExample();
+    },
+  };
+  if (EMBEDDED) return;
+  chat.start();
   watchVisibility(restart, () => game.stop());
   watchUpdates(() => game.state !== 'playing');
-  window.slovolov = { game, chat, view };
 }
 
-const view = new View({ still: DEMO });
-if (DEMO) showDemo(view);
-else runGame(view);
+run(new View());

@@ -8,7 +8,6 @@ export const BOTS = [
   'pokemoncommunitygame', 'songlistbot', 'pretzelrocks', 'restreambot', 'commanderroot', 'frostytoolsdotcom',
 ];
 export const START_DELAY = 10;
-export const SHUFFLE_EVERY = 30;
 export const CHAT_KEEP = 60;
 export const CHAT_SHOWN = 30;
 export const CHAT_TEXT_MAX = 300;
@@ -183,6 +182,23 @@ export class Game {
     return this._run(() => this._resetScores());
   }
 
+  configure(settings) {
+    return this._run(() => {
+      const before = this.s, s = Object.assign({}, settings), now = this.clock();
+      const changed = (...keys) => keys.some((key) => before[key] !== s[key]);
+      this.s = s;
+      if (changed('reset_mode', 'reset_hour', 'reset_hours') && this.scores.since !== null) this.scores.mark(now);
+      this._planReset();
+      if (this.state === 'playing') {
+        const round = this.round;
+        if (changed('round_time')) round.ends = s.round_time ? round.started + s.round_time : null;
+        if (changed('hint_every')) round.hintAt = s.hint_every ? now + s.hint_every : null;
+        if (changed('shuffle_every')) round.shuffleAt = s.shuffle_every ? now + s.shuffle_every : null;
+      }
+      this._bump();
+    });
+  }
+
   feed(user, text, { mod = false, msgId = null, login = null, color = null, emotes = null } = {}) {
     return this._run(() => {
       const name = String(user || '').trim();
@@ -224,7 +240,7 @@ export class Game {
           return;
         }
         if (round.hintAt && now >= round.hintAt) this._hint(now);
-        if (this.state === 'playing' && now >= round.shuffleAt) this._shuffle(now);
+        if (this.state === 'playing' && round.shuffleAt && now >= round.shuffleAt) this._shuffle(now);
       } else if (this.state === 'results') {
         if (now >= this.results.next_at) this._newRound();
       }
@@ -470,7 +486,7 @@ export class Game {
       if (order !== before && !order.includes(round.base)) break;
     }
     round.letters = letters;
-    round.shuffleAt = now + SHUFFLE_EVERY;
+    round.shuffleAt = this.s.shuffle_every ? now + this.s.shuffle_every : null;
     this._bump();
   }
 
@@ -511,7 +527,7 @@ export class Game {
       started: now,
       ends: s.round_time ? now + s.round_time : null,
       hintAt: s.hint_every ? now + s.hint_every : null,
-      shuffleAt: now + SHUFFLE_EVERY,
+      shuffleAt: s.shuffle_every ? now + s.shuffle_every : null,
     };
     this.results = null;
     this.startsAt = null;
