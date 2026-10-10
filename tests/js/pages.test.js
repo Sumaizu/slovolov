@@ -676,20 +676,37 @@ test('страница: при первом заходе — пример, ре�
   forget();
 });
 
-test('страница: всё управление — в одной строке с заголовком, игра занимает остальную страницу', async () => {
+test('страница: название, состояние и кнопки — одной полосой по центру, игра занимает остальную страницу', async () => {
   forget();
   const frame = await mainPage();
   const w = frame.contentWindow;
   const place = (node) => node.getBoundingClientRect();
-  const title = place(w.document.querySelector('h1')), screen = place(element(w, 'game'));
-  for (const node of [element(w, 's-channel'), element(w, 'play'), element(w, 'pause'), element(w, 'reset'),
-    element(w, 'toggle-settings'), element(w, 'toggle-link'), w.document.querySelector('.author a')]) {
-    ok(place(node).left > title.right && place(node).top < title.bottom && place(node).bottom > title.top, node.id);
-  }
-  ok(place(w.document.querySelector('.author a')).right > w.innerWidth - 40);
-  ok(screen.top < title.bottom + 30 && screen.bottom > w.innerHeight - 40, [screen.top, screen.bottom]);
+  const strip = w.document.querySelector('.top');
+  const parts = [w.document.querySelector('h1'), element(w, 'status'), element(w, 's-channel'), element(w, 'play'),
+    element(w, 'pause'), element(w, 'reset'), element(w, 'toggle-settings'), element(w, 'toggle-link'),
+    w.document.querySelector('.author')];
+  const together = (note) => {
+    const title = place(parts[0]);
+    parts.forEach((node, i) => {
+      ok(place(node).top < title.bottom && place(node).bottom > title.top, note + ': не в строке — ' + i);
+      if (i) ok(place(node).left - place(parts[i - 1]).right < 30, note + ': разрыв перед ' + i);
+    });
+    const left = place(strip).left, right = w.innerWidth - place(strip).right;
+    ok(Math.abs(left - right) <= 2, note + ': не по центру — ' + left + ' и ' + right);
+  };
+  together('окно 1280');
+  const screen = place(element(w, 'game'));
+  ok(screen.top < place(parts[0]).bottom + 30 && screen.bottom > w.innerHeight - 40, [screen.top, screen.bottom]);
   ok(Math.abs(screen.width / screen.height - 16 / 9) < 0.02);
   eq([w.document.documentElement.scrollHeight, w.document.documentElement.scrollWidth], [w.innerHeight, w.innerWidth]);
+  const narrow = place(element(w, 'status')).width;
+  frame.style.width = '1900px';
+  await until(() => w.innerWidth === 1900, 'окно стало шире');
+  together('окно 1900');
+  ok(place(strip).left > 200 && place(element(w, 'status')).width > narrow, place(strip).left);
+  const before = place(element(w, 'play')).left;
+  element(w, 'status').textContent = 'Подключаюсь к чату очень_длинное_название_канала…';
+  eq(place(element(w, 'play')).left, before);
   frame.remove();
   forget();
 });
