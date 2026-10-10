@@ -33,13 +33,17 @@ h1 {
   color: var(--accent);
 }
 .tagline {
-  flex: 1 1 120px; min-width: 0; color: var(--muted);
+  flex: 1 1 90px; min-width: 0; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tagline.ok { color: var(--ok); }
 .tagline.warn { color: var(--warn); }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.controls input { width: 200px; }
+.controls input { width: 190px; }
+#play { min-width: 7.5em; }
+#pause { min-width: 8em; }
+#reset { min-width: 5.6em; }
+#reset.armed { border-color: var(--warn); color: var(--warn); }
 .author { color: var(--muted); white-space: nowrap; }
 .author a { color: var(--accent); font-weight: 700; text-decoration: none; }
 .author a:hover { text-decoration: underline; }

@@ -16,6 +16,8 @@
     <form class="controls" id="start" autocomplete="off">
       <input type="text" id="s-channel" placeholder="канал Twitch" spellcheck="false" aria-label="Канал Twitch">
       <button type="submit" class="primary" id="play" disabled>Начать</button>
+      <button type="button" id="pause" disabled>Пауза</button>
+      <button type="button" id="reset" title="Обнулить общий счёт" disabled>Сброс</button>
       <button type="button" id="toggle-settings" aria-expanded="false" aria-controls="settings">Настройки</button>
       <button type="button" id="toggle-link" aria-expanded="false" aria-controls="link-panel">Ссылка для OBS</button>
     </form>
@@ -96,6 +98,7 @@
           <input type="checkbox" id="s-chat_commands">
           <span>Команды для стримера и модераторов
             <span class="hint"><code>!словолов-раунд</code> — закончить раунд</span>
+            <span class="hint"><code>!словолов-пауза</code> — пауза, ещё раз — продолжить</span>
             <span class="hint"><code>!словолов-сброс</code> — обнулить общий счёт</span>
           </span>
         </label>
@@ -106,7 +109,7 @@
         <div class="field">
           <label for="s-reset_mode">Сбрасывать</label>
           <select id="s-reset_mode">
-            <option value="never">только командой в чате</option>
+            <option value="never">только вручную: кнопкой или командой</option>
             <option value="day">каждый день</option>
             <option value="week">каждую неделю, в понедельник</option>
             <option value="month">каждый месяц, первого числа</option>

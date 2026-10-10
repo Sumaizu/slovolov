@@ -58,6 +58,95 @@ test('запуск: под настройки нет слов — игра не 
   eq(last(events).type, 'no_words');
 });
 
+test('пауза: раунд замирает, «продолжить» возвращает его с того же места', () => {
+  const { game, clock, events } = startRound({ settings: { hint_every: 45, shuffle_every: 30, round_time: 300 } });
+  game.feed('Вася', 'тема');
+  clock.t += 10;
+  const before = game.snapshot();
+  ok(game.pause());
+  no(game.pause());
+  let state = game.snapshot();
+  eq([state.state, state.round, state.found, state.total], ['paused', 1, 1, 5]);
+  eq([state.letters, state.words, state.round_scores], [before.letters, before.words, before.round_scores]);
+  eq(game.feed('Петя', 'мел'), null);
+  eq(game.feed('Петя', 'привет'), null);
+  state = game.snapshot();
+  eq([state.found, state.feed.map((message) => message.text)], [1, ['тема', 'мел', 'привет']]);
+  clock.t += 1000;
+  game.tick();
+  state = game.snapshot();
+  eq([state.state, state.letters, state.words], ['paused', before.letters, before.words]);
+  ok(game.resume());
+  no(game.resume());
+  state = game.snapshot();
+  eq([state.state, state.started, state.hint_at, state.ends], ['playing', before.started, before.hint_at + 1000,
+    before.ends + 1000]);
+  clock.t += 19;
+  game.tick();
+  eq(game.snapshot().letters, before.letters);
+  clock.t += 1;
+  game.tick();
+  no(game.snapshot().letters.join('') === before.letters.join(''));
+  eq(game.feed('Петя', 'мел').type, 'guess');
+  eq(types(events), ['countdown', 'round_start', 'guess', 'paused', 'resumed', 'guess']);
+});
+
+test('пауза: отсчёт и перерыв между раундами тоже замирают', () => {
+  const { game, clock } = makeGame({ settings: { pause: 12 } });
+  no(game.pause());
+  game.open();
+  clock.t += 4;
+  ok(game.pause());
+  eq([game.snapshot().state, 'words' in game.snapshot()], ['paused', false]);
+  clock.t += 500;
+  game.tick();
+  eq(game.snapshot().state, 'paused');
+  game.resume();
+  eq([game.snapshot().state, game.snapshot().starts_at], ['countdown', clock.t + 6]);
+  clock.t += 6;
+  game.tick();
+  eq(game.snapshot().state, 'playing');
+  game.skip();
+  const next = game.snapshot().results.next_at;
+  clock.t += 2;
+  game.pause();
+  let state = game.snapshot();
+  eq([state.state, state.results.reason, state.words.every((w) => w.word)], ['paused', 'skip', true]);
+  clock.t += 100;
+  game.tick();
+  eq(game.snapshot().state, 'paused');
+  game.resume();
+  state = game.snapshot();
+  eq([state.state, state.results.next_at], ['results', next + 100]);
+  clock.t += 9;
+  game.tick();
+  eq(game.snapshot().state, 'results');
+  clock.t += 1;
+  game.tick();
+  eq([game.snapshot().state, game.snapshot().round], ['playing', 2]);
+});
+
+test('пауза: настройки, изменённые на паузе, действуют с её начала; остановка снимает паузу', () => {
+  const { game, clock } = startRound({ settings: { hint_every: 0, shuffle_every: 0 } });
+  clock.t += 20;
+  game.pause();
+  clock.t += 500;
+  game.configure(clean({ ...ONLY_METLA, hint_every: 7, shuffle_every: 0, round_time: 60 }));
+  clock.t += 500;
+  game.resume();
+  const state = game.snapshot();
+  eq([state.state, state.hint_at, state.ends], ['playing', clock.t + 7, clock.t + 40]);
+  game.configure(clean({ ...ONLY_METLA, hint_every: 7, shuffle_every: 0, round_time: 100 }));
+  eq(game.snapshot().ends, clock.t + 80);
+  game.pause();
+  game.stop();
+  eq(game.snapshot().state, 'stopped');
+  no(game.resume());
+  ok(game.open(0));
+  game.tick();
+  eq([game.snapshot().state, game.snapshot().round], ['playing', 2]);
+});
+
 test('раунд: буквы перемешаны, слова скрыты', () => {
   const { game } = startRound();
   const state = game.snapshot();
@@ -388,6 +477,23 @@ test('команды: «раунд» заканчивает раунд, «сбр
   eq([game.snapshot().top, game.snapshot().players], [[], 0]);
 });
 
+test('команды: «пауза» ставит игру на паузу, ещё раз — продолжает', () => {
+  const { game, clock } = startRound({ settings: { hint_every: 45 } });
+  const hintAt = game.snapshot().hint_at;
+  eq(game.feed('Зритель', '!словолов-пауза'), null);
+  eq(game.snapshot().state, 'playing');
+  eq(game.feed('Модер', '!словолов-пауза', { mod: true }), { type: 'command', command: 'pause' });
+  eq(game.snapshot().state, 'paused');
+  game.feed('Модер', '!словолов-раунд', { mod: true });
+  eq([game.snapshot().state, 'results' in game.snapshot()], ['paused', false]);
+  game.scores.add('Вася', 5);
+  game.feed('Модер', '!словолов-сброс', { mod: true });
+  eq(game.snapshot().players, 0);
+  clock.t += 60;
+  eq(game.feed('Модер', '!Словолов-Пауза', { mod: true }).command, 'pause');
+  eq([game.snapshot().state, game.snapshot().hint_at], ['playing', hintAt + 60]);
+});
+
 test('команды: только для стримера и модераторов, прежние команды не действуют', () => {
   const { game } = startRound();
   eq(game.feed('Зритель', '!словолов-раунд'), null);
@@ -402,6 +508,7 @@ test('команды: только для стримера и модератор
 test('команды: выключаются настройкой', () => {
   const { game } = startRound({ settings: { chat_commands: false } });
   eq(game.feed('Модер', '!словолов-раунд', { mod: true }), null);
+  eq(game.feed('Модер', '!словолов-пауза', { mod: true }), null);
   eq(game.snapshot().state, 'playing');
 });
 

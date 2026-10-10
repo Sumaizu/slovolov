@@ -8,6 +8,7 @@ const FLAGS = ['chat_commands', 'sound'];
 const HIDDEN_PARTS = { chat: 'hide-chat', side: 'hide-side', bg: 'hide-bg' };
 const DATE_MODES = ['day', 'week', 'month'];
 const SYNC_MS = 500;
+const RESET_CONFIRM_MS = 4000;
 
 const $ = (id) => document.getElementById(id);
 const frame = $('game'), form = $('settings'), channelField = $('s-channel'), linkPanel = $('link-panel');
@@ -17,6 +18,7 @@ let settings = restore();
 let playing = false;
 let connected = false;
 let notice = '';
+let resetUntil = 0;
 
 function restore() {
   if (location.search.length > 1) return fromQuery(location.search);
@@ -126,6 +128,7 @@ function toggleGame() {
   if (playing) {
     api.stop();
     playing = false;
+    resetUntil = 0;
   } else if (!settings.channel) {
     notice = 'Впиши канал Twitch — без него игра не увидит чат.';
     channelField.focus();
@@ -133,6 +136,25 @@ function toggleGame() {
     api.start();
     playing = true;
     showLinkPanel(false);
+  }
+  sync();
+}
+
+function togglePause() {
+  const api = overlay();
+  if (!api || !playing) return;
+  if (!api.game.resume()) api.game.pause();
+  sync();
+}
+
+function resetScores() {
+  const api = overlay();
+  if (!api || !playing) return;
+  if (Date.now() < resetUntil) {
+    api.game.resetScores();
+    resetUntil = 0;
+  } else {
+    resetUntil = Date.now() + RESET_CONFIRM_MS;
   }
   sync();
 }
@@ -154,9 +176,17 @@ function sync() {
     playing = false;
     notice = 'Под эти настройки не нашлось слов — игра остановлена.';
   }
+  const paused = playing && api.game.state === 'paused', asking = playing && Date.now() < resetUntil;
   $('play').textContent = playing ? 'Остановить' : 'Начать';
+  $('pause').disabled = $('reset').disabled = !playing;
+  $('pause').textContent = paused ? 'Продолжить' : 'Пауза';
+  $('reset').textContent = asking ? 'Точно?' : 'Сброс';
+  $('reset').classList.toggle('armed', asking);
   $('example-note').hidden = playing;
-  if (playing) {
+  if (paused) {
+    notice = '';
+    showStatus('status', 'warn', 'Пауза');
+  } else if (playing) {
     notice = '';
     const chat = api.chat.status;
     const text = chat.text.charAt(0).toUpperCase() + chat.text.slice(1);
@@ -209,6 +239,8 @@ $('start').addEventListener('submit', (event) => {
   event.preventDefault();
   toggleGame();
 });
+$('pause').addEventListener('click', togglePause);
+$('reset').addEventListener('click', resetScores);
 channelField.addEventListener('change', commitChannel);
 channelField.addEventListener('input', () => { notice = ''; });
 $('toggle-settings').addEventListener('click', toggleSettings);

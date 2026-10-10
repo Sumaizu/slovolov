@@ -35,7 +35,7 @@ def shoot_overlay(browser, base, out, query=""):
 
 
 def shoot_page(browser, base, out):
-    browser.set_size(1280, 760)
+    browser.set_size(1440, 840)
     browser.navigate(f"{base}/index.html")
     browser.wait_for(PAGE_READY, 30)
     browser.evaluate("document.getElementById('toggle-link').click()")

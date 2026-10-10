@@ -178,6 +178,98 @@ test('оверлей: открылся — отсчёт десять секун�
   frame.remove();
 });
 
+test('оверлей: отсчёт не откатывается назад, когда догрузились смайлики', async () => {
+  forget();
+  const frame = await overlay();
+  const w = frame.contentWindow, { game, chat, view } = w.slovolov;
+  noImages(w);
+  let release = null;
+  const gate = new Promise((resolve) => { release = resolve; });
+  w.fetch = async (url) => {
+    await gate;
+    const reply = EMOTE_REPLIES[String(url)];
+    return reply ? { ok: true, status: 200, json: async () => reply } : { ok: false, status: 404 };
+  };
+  const shown = () => Number(element(w, 'countdown-number').textContent);
+  const images = () => all(w, '#chat .msg img').map((image) => image.getAttribute('data-src'));
+  await until(() => !element(w, 'lobby').hidden && shown() > 0, 'отсчёт на экране');
+  const first = shown();
+  chat.onMessage('Оля', 'catJAM привет', false, {});
+  chat.status.roomId = '123';
+  game._bump();
+  await until(() => shown() < first, 'отсчёт пошёл', 3000);
+  eq(images(), []);
+  const before = shown();
+  release();
+  await until(() => view.emotes.size, 'смайлики загружены');
+  const after = [shown()];
+  await wait(300);
+  after.push(shown());
+  ok(Math.max(...after) <= before, after.join(', ') + ' после ' + before);
+  eq(images(), ['https://cdn.7tv.app/emote/01ABCDEFGHJKMNPQRSTVWXYZ01/2x.webp']);
+  frame.remove();
+});
+
+test('оверлей: на паузе вместо игры — счёт раунда слева и общий счёт справа', async () => {
+  forget();
+  const { frame, w, game, chat, view } = await playing('hint_every=0');
+  const words = game.answers().words.map((slot) => slot.word);
+  const short = words[0], long = words[words.length - 1];
+  const rows = (id) => all(w, '#' + id + ' li').map((row) => [row.querySelector('.name').textContent,
+    row.querySelector('.points').textContent]);
+  const expected = [['Вася', short.length], ['Петя', long.length]].sort((a, b) => b[1] - a[1]);
+  chat.onMessage('Вася', short, false, {});
+  chat.onMessage('Петя', long, false, {});
+  await until(() => all(w, '#words .slot.open').length === 2, 'два слова открыты');
+  ok(element(w, 'pause').hidden);
+  const field = box(element(w, 'main')), card = box(element(w, 'card'));
+  game.pause();
+  await until(() => !element(w, 'pause').hidden, 'экран паузы');
+  eq([element(w, 'head').hidden, element(w, 'play').hidden, element(w, 'lobby').hidden], [true, true, true]);
+  eq([w.document.querySelector('#pause h2').textContent, element(w, 'h-pause-round').textContent],
+    ['Пауза', 'В этом раунде']);
+  eq(rows('pause-round'), expected.map(([name, points]) => [name, '+' + points]));
+  eq(rows('pause-total'), expected.map(([name, points]) => [name, String(points)]));
+  const main = box(element(w, 'main')), left = box(element(w, 'board-round')), right = box(element(w, 'board-total'));
+  ok(main[0] <= left[0] && left[1] < right[0] && right[1] <= main[1], [main, left, right].join(' | '));
+  eq([w.getComputedStyle(element(w, 'side')).display, main[1] > field[1], box(element(w, 'card'))],
+    ['none', true, card]);
+  chat.onMessage('Оля', words[1], false, {});
+  await until(() => element(w, 'chat').innerText.includes('Оля'), 'сообщение в чате');
+  eq([game.snapshot().found, rows('pause-round').length], [2, 2]);
+  game.resume();
+  await until(() => element(w, 'pause').hidden && !element(w, 'play').hidden, 'игра вернулась');
+  eq([all(w, '#words .slot.open').length, element(w, 'head').hidden], [2, false]);
+  eq([w.getComputedStyle(element(w, 'side')).display, box(element(w, 'main'))], ['flex', field]);
+  await wait(300);
+  eq(view.heard.filter((name) => name === 'start').length, 1);
+  game.skip();
+  await until(() => element(w, 'card').classList.contains('results'), 'итоги раунда');
+  game.pause();
+  await until(() => !element(w, 'pause').hidden, 'пауза на итогах');
+  eq(element(w, 'h-pause-round').textContent, 'Итоги раунда');
+  frame.remove();
+  forget();
+});
+
+test('оверлей: пауза во время отсчёта и без правой панели — рамка на месте, потом отсчёт продолжается', async () => {
+  forget();
+  const frame = await overlay('side=0');
+  const w = frame.contentWindow, game = w.slovolov.game;
+  await until(() => !element(w, 'lobby').hidden, 'отсчёт на экране');
+  const field = box(element(w, 'main')), card = box(element(w, 'card'));
+  game.pause();
+  await until(() => !element(w, 'pause').hidden && element(w, 'lobby').hidden, 'экран паузы');
+  eq(all(w, '#pause-round li').map((row) => row.textContent), ['раунд ещё не начался']);
+  eq(all(w, '#pause-total li').map((row) => row.textContent), ['пока пусто']);
+  eq([box(element(w, 'main')), box(element(w, 'card'))], [field, card]);
+  game.resume();
+  await until(() => element(w, 'pause').hidden && !element(w, 'lobby').hidden, 'снова отсчёт');
+  ok(Number(element(w, 'countdown-number').textContent) >= 8);
+  frame.remove();
+  forget();
+});
+
 test('оверлей: источник скрыли — игра остановилась, показали — отсчёт и новое слово', async () => {
   forget();
   const { frame, w, game } = await playing();
@@ -590,8 +682,8 @@ test('страница: всё управление — в одной строк
   const w = frame.contentWindow;
   const place = (node) => node.getBoundingClientRect();
   const title = place(w.document.querySelector('h1')), screen = place(element(w, 'game'));
-  for (const node of [element(w, 's-channel'), element(w, 'play'), element(w, 'toggle-settings'),
-    element(w, 'toggle-link'), w.document.querySelector('.author a')]) {
+  for (const node of [element(w, 's-channel'), element(w, 'play'), element(w, 'pause'), element(w, 'reset'),
+    element(w, 'toggle-settings'), element(w, 'toggle-link'), w.document.querySelector('.author a')]) {
     ok(place(node).left > title.right && place(node).top < title.bottom && place(node).bottom > title.top, node.id);
   }
   ok(place(w.document.querySelector('.author a')).right > w.innerWidth - 40);
@@ -649,7 +741,7 @@ test('страница: кнопка «Настройки» открывает �
   }
   ok(place(w.document.querySelector('.switch')).height < 48);
   const commands = Array.from(w.document.querySelectorAll('.check code'));
-  eq(commands.map((node) => node.textContent), ['!словолов-раунд', '!словолов-сброс']);
+  eq(commands.map((node) => node.textContent), ['!словолов-раунд', '!словолов-пауза', '!словолов-сброс']);
   ok(place(commands[1]).top > place(commands[0]).bottom - 2);
   toggle.click();
   ok(panel.hidden);
@@ -687,6 +779,46 @@ test('страница: «Начать» запускает игру в брау
   await until(() => element(game, 'chat').innerText.includes('уже было'), 'снова пример');
   eq(element(w, 'status').textContent, 'игра в слова для чата Twitch');
   no(element(w, 'example-note').hidden);
+  frame.remove();
+  forget();
+});
+
+test('страница: кнопки «Пауза» и «Продолжить» замораживают и возвращают раунд, «Сброс» обнуляет счёт', async () => {
+  forget();
+  const frame = await mainPage();
+  const w = frame.contentWindow, game = gameOf(w), api = game.slovolov;
+  fakeSockets(api.chat);
+  const pause = element(w, 'pause'), reset = element(w, 'reset');
+  eq([pause.textContent, pause.disabled, reset.textContent, reset.disabled], ['Пауза', true, 'Сброс', true]);
+  element(w, 's-channel').value = 'some_one';
+  element(w, 'play').click();
+  eq([api.game.state, pause.disabled, reset.disabled], ['countdown', false, false]);
+  await until(() => !element(game, 'lobby').hidden, 'отсчёт в рамке');
+  api.game.tick(api.game.startsAt);
+  await until(() => all(game, '#words .slot').length && element(game, 'lobby').hidden, 'раунд в рамке');
+  api.chat.onMessage('Вася', api.game.answers().words[0].word, false, {});
+  await until(() => all(game, '#words .slot.open').length === 1, 'слово открылось');
+  pause.click();
+  eq([api.game.state, pause.textContent, element(w, 'status').textContent], ['paused', 'Продолжить', 'Пауза']);
+  await until(() => !element(game, 'pause').hidden && element(game, 'play').hidden, 'экран паузы в рамке');
+  reset.click();
+  eq([reset.textContent, api.game.snapshot().players], ['Точно?', 1]);
+  const place = (node) => node.getBoundingClientRect(), title = place(w.document.querySelector('h1'));
+  for (const node of [pause, reset, element(w, 'toggle-link'), w.document.querySelector('.author a')]) {
+    ok(place(node).top < title.bottom && place(node).bottom > title.top, node.id);
+  }
+  await until(() => reset.textContent === 'Сброс', 'без второго нажатия счёт остаётся', 8000);
+  eq(api.game.snapshot().players, 1);
+  reset.click();
+  reset.click();
+  eq([reset.textContent, api.game.snapshot().players], ['Сброс', 0]);
+  pause.click();
+  eq([api.game.state, pause.textContent], ['playing', 'Пауза']);
+  await until(() => element(game, 'pause').hidden && all(game, '#words .slot.open').length === 1, 'раунд вернулся');
+  api.game.feed('Модер', '!словолов-пауза', { mod: true });
+  await until(() => pause.textContent === 'Продолжить', 'кнопка следует за командой из чата');
+  element(w, 'play').click();
+  eq([api.game.state, pause.textContent, pause.disabled, reset.disabled], ['stopped', 'Пауза', true, true]);
   frame.remove();
   forget();
 });

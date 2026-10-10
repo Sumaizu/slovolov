@@ -1,6 +1,7 @@
 import { isWord, norm, pick, shuffle } from './words.js';
 
-export const COMMANDS = new Map([['!словолов-раунд', 'skip'], ['!словолов-сброс', 'reset']]);
+export const COMMANDS = new Map([['!словолов-раунд', 'skip'], ['!словолов-пауза', 'pause'],
+  ['!словолов-сброс', 'reset']]);
 export const STARS = new Map([
   ['sumaizu', 'rainbow'],
   ['sukoshissrb', 'white'],
@@ -148,6 +149,7 @@ export class Game {
     this.round = null;
     this.results = null;
     this.startsAt = null;
+    this._held = null;
     this.listeners = [];
     this.onchange = null;
     this._events = [];
@@ -179,6 +181,14 @@ export class Game {
     });
   }
 
+  pause() {
+    return this._run(() => this._pause());
+  }
+
+  resume() {
+    return this._run(() => this._resume());
+  }
+
   skip() {
     return this._run(() => this._skip());
   }
@@ -194,11 +204,12 @@ export class Game {
       this.s = s;
       if (changed('reset_mode', 'reset_hour', 'reset_hours') && this.scores.since !== null) this.scores.mark(now);
       this._planReset();
-      if (this.state === 'playing') {
+      const held = this._held, from = held ? held.at : now;
+      if (this.state === 'playing' || (held && held.state === 'playing')) {
         const round = this.round;
-        if (changed('round_time')) round.ends = s.round_time ? round.started + s.round_time : null;
-        if (changed('hint_every')) round.hintAt = s.hint_every ? now + s.hint_every : null;
-        if (changed('shuffle_every')) round.shuffleAt = s.shuffle_every ? now + s.shuffle_every : null;
+        if (changed('round_time')) round.ends = s.round_time ? round.started + round.idle + s.round_time : null;
+        if (changed('hint_every')) round.hintAt = s.hint_every ? from + s.hint_every : null;
+        if (changed('shuffle_every')) round.shuffleAt = s.shuffle_every ? from + s.shuffle_every : null;
       }
       this._bump();
     });
@@ -286,7 +297,7 @@ export class Game {
     };
     const round = this.round;
     if (!round) return state;
-    const over = this.state === 'results';
+    const over = Boolean(this.results);
     state.letters = round.letters.slice();
     state.words = round.slots.map((slot) => {
       const open = Boolean(slot.by) || slot.closed || over;
@@ -346,6 +357,32 @@ export class Game {
     this.round = null;
     this.results = null;
     this.startsAt = null;
+    this._held = null;
+  }
+
+  _pause() {
+    if (this.state === 'stopped' || this.state === 'paused') return false;
+    this._held = { state: this.state, at: this.clock() };
+    this.state = 'paused';
+    this._emit('paused');
+    this._bump();
+    return true;
+  }
+
+  _resume() {
+    if (this.state !== 'paused') return false;
+    const idle = this.clock() - this._held.at, round = this.round;
+    if (this.startsAt !== null) this.startsAt += idle;
+    if (this.results) this.results.next_at += idle;
+    if (round) {
+      round.idle += idle;
+      for (const due of ['ends', 'hintAt', 'shuffleAt']) if (round[due]) round[due] += idle;
+    }
+    this.state = this._held.state;
+    this._held = null;
+    this._emit('resumed');
+    this._bump();
+    return true;
   }
 
   _skip() {
@@ -374,7 +411,8 @@ export class Game {
     const command = COMMANDS.get(message.toLowerCase().split(/\s+/)[0]);
     if (!command || !mod || this.s.chat_commands === false) return null;
     if (command === 'skip') this._skip();
-    else this._resetScores();
+    else if (command === 'reset') this._resetScores();
+    else if (!this._resume()) this._pause();
     return { type: 'command', command };
   }
 
@@ -530,6 +568,7 @@ export class Game {
       taken: new Map(),
       scores: new Map(),
       started: now,
+      idle: 0,
       ends: s.round_time ? now + s.round_time : null,
       hintAt: s.hint_every ? now + s.hint_every : null,
       shuffleAt: s.shuffle_every ? now + s.shuffle_every : null,

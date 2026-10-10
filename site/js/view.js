@@ -6,6 +6,7 @@ const TILE = 84, TILE_DENSE = 62, TILE_GAP = 10, DENSE_FROM = 31;
 const COLUMNS = 3, COLUMN_ROWS = 15, CELL_MAX = 46, ROW_GAP = 0.2, COLUMN_GAP = 1.5, CELL_GAP = 0.09;
 const FIELD = { width: 704, height: 466 };
 const SIDE = { height: 664, rules: 159, row: 24, frame: 42, gap: 12 };
+const BOARD = { height: 604, frame: 53, row: 32 };
 const TOP_ROWS = 10;
 const LONG_WORD = 6;
 const FINAL_SECONDS = 3;
@@ -155,11 +156,13 @@ export class View {
       return;
     }
     stage.hidden = false;
-    const waiting = !state.words, over = state.state === 'results';
+    const paused = state.state === 'paused', waiting = !state.words, over = Boolean(state.results);
     const wasWaiting = !$('lobby').hidden;
     $('card').classList.toggle('results', over);
-    $('head').hidden = $('play').hidden = waiting;
-    $('lobby').hidden = !waiting;
+    $('card').classList.toggle('paused', paused);
+    $('pause').hidden = !paused;
+    $('head').hidden = $('play').hidden = waiting || paused;
+    $('lobby').hidden = !waiting || paused;
     const roundKey = waiting ? '' : [state.round, state.started].concat(state.words.map((word) => word.len)).join(':');
     if (roundKey !== this._roundKey) {
       this._roundKey = roundKey;
@@ -172,7 +175,9 @@ export class View {
     }
     this._paintFeed(state);
     this._paintLists(state);
-    if (waiting) {
+    if (paused) {
+      this._paintPause(state);
+    } else if (waiting) {
       if (!wasWaiting) this._paintTitle();
     } else {
       $('round').textContent = state.round;
@@ -197,7 +202,7 @@ export class View {
 
   _paintClock() {
     const state = this.state;
-    if (!state || $('stage').hidden) return;
+    if (!state || state.state === 'paused' || $('stage').hidden) return;
     const now = this.still ? state.now : Date.now() / 1000 + this.offset;
     if (state.state === 'countdown') {
       this._paintCountdown(Math.max(0, state.starts_at - now));
@@ -257,7 +262,7 @@ export class View {
 
   _redrawFeed() {
     this._feedStale = true;
-    if (this.state) this.render(this.state);
+    if (this.state) this._paintFeed(this.state);
   }
 
   _startRound(state, over) {
@@ -356,7 +361,7 @@ export class View {
   }
 
   _paintList(id, rows, limit, total, points, emptyText) {
-    const key = JSON.stringify([rows.slice(0, limit).map((row) => [row.name, points(row)]), limit, total]);
+    const key = JSON.stringify([rows.slice(0, limit).map((row) => [row.name, points(row)]), limit, total, emptyText]);
     if (this._listKeys[id] === key) return;
     this._listKeys[id] = key;
     const list = $(id);
@@ -380,8 +385,20 @@ export class View {
     }
   }
 
+  _boardRows() {
+    return Math.max(2, Math.floor((($('board-total').clientHeight || BOARD.height) - BOARD.frame) / BOARD.row));
+  }
+
+  _paintPause(state) {
+    const round = state.round_scores || [], top = state.top || [], rows = this._boardRows();
+    const nobody = !state.words ? 'раунд ещё не начался' : state.results ? 'никто не угадал' : 'пока никто не угадал';
+    $('h-pause-round').textContent = state.results ? 'Итоги раунда' : 'В этом раунде';
+    this._paintList('pause-round', round, rows, round.length, (row) => '+' + row.pts, nobody);
+    this._paintList('pause-total', top, rows, state.players || 0, (row) => row.score, 'пока пусто');
+  }
+
   _paintLists(state) {
-    const waiting = !state.words, over = state.state === 'results';
+    const waiting = !state.words, over = Boolean(state.results);
     const round = state.round_scores || [], top = state.top || [], players = state.players || 0;
     $('box-round').hidden = waiting;
     if (waiting) {

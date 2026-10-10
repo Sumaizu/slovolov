@@ -151,7 +151,7 @@ async function run(view) {
   if (EMBEDDED) return;
   chat.start();
   watchVisibility(restart, () => game.stop());
-  watchUpdates(() => game.state !== 'playing');
+  watchUpdates(() => game.state !== 'playing' && game.state !== 'paused');
 }
 
 run(new View());
