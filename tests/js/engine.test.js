@@ -654,7 +654,7 @@ test('чат: смайлики Twitch доходят до ленты', () => {
 test('чат: особые ники узнаются по логину, у каждого свой вид', () => {
   const { game } = startRound();
   eq(Array.from(STARS), [['sumaizu', 'rainbow'], ['sukoshissrb', 'white'], ['fra3a', 'thyme'],
-    ['welovegames', 'heart']]);
+    ['welovegames', 'heart'], ['higashi_vo', 'snow']]);
   game.feed('Sumaizu', 'привет', { login: 'sumaizu' });
   game.feed('Петя', 'привет', { login: 'petya' });
   game.feed('Ник На Кириллице', 'привет', { login: 'sumaizu' });
@@ -663,9 +663,10 @@ test('чат: особые ники узнаются по логину, у ка�
   game.feed('SukoshiSSRB', 'привет', { login: 'sukoshissrb' });
   game.feed('FRA3A', 'привет');
   game.feed('WELOVEGAMES', 'привет', { login: 'welovegames' });
+  game.feed('higashi_vo', 'привет');
   game.feed('constructor', 'привет');
   const state = game.snapshot();
-  eq(state.feed.map((m) => m.star), ['rainbow', '', 'rainbow', '', 'rainbow', 'white', 'thyme', 'heart', '']);
+  eq(state.feed.map((m) => m.star), ['rainbow', '', 'rainbow', '', 'rainbow', 'white', 'thyme', 'heart', 'snow', '']);
   eq(state.stars, Array.from(STARS));
 });
 

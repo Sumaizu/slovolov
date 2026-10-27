@@ -526,6 +526,25 @@ test('оверлей: у особых ников свой цвет и своя �
   forget();
 });
 
+test('оверлей: снежный ник — голубая рамка, по нику бежит блик, в лад в чате и в счёте', async () => {
+  forget();
+  const { frame, w, game, chat } = await playing('hint_every=0');
+  const style = (node, pseudo) => w.getComputedStyle(node, pseudo);
+  const rows = () => all(w, '#chat .msg');
+  chat.onMessage('higashi_vo', 'привет', false, { login: 'higashi_vo' });
+  await wait(700);
+  chat.onMessage('higashi_vo', game.answers().words[0].word, false, { login: 'higashi_vo' });
+  await until(() => rows().length === 2, 'два сообщения');
+  eq(rows()[0].className, 'msg star star-snow pop');
+  eq(style(rows()[0]).borderTopColor, 'rgb(166, 214, 255)');
+  eq(style(rows()[0].querySelector('b')).animationName, 'snow-glint');
+  eq(style(rows()[0], '::after').content, 'none');
+  await until(() => w.document.querySelector('#list-round .name.snow'), 'ник в счёте раунда');
+  await until(() => inStep(w, 'snow-glint', 4), 'блик в чате и в счёте идёт в лад');
+  frame.remove();
+  forget();
+});
+
 function inStep(w, name, count) {
   const phases = w.document.getAnimations().filter((item) => item.animationName === name)
     .map((item) => item.effect.getComputedTiming().progress);

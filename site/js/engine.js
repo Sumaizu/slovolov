@@ -7,6 +7,7 @@ export const STARS = new Map([
   ['sukoshissrb', 'white'],
   ['fra3a', 'thyme'],
   ['welovegames', 'heart'],
+  ['higashi_vo', 'snow'],
 ]);
 export const BOTS = [
   'nightbot', 'streamelements', 'streamlabs', 'moobot', 'fossabot', 'wizebot', 'jeetbot', 'soundalerts', 'sery_bot',
