@@ -691,6 +691,8 @@ test('страница: при первом заходе — пример, ре�
   eq(w.document.getElementById('save'), null);
   const author = w.document.querySelector('.author a');
   eq([author.textContent, author.getAttribute('href')], ['Sumaizu', 'https://twitch.tv/sumaizu']);
+  const home = w.document.querySelector('h1 a');
+  eq([home.textContent, home.getAttribute('href'), home.target], ['Словолов', 'https://gamesonstream.ru/', '']);
   frame.remove();
   forget();
 });
@@ -749,7 +751,7 @@ test('страница: ссылка для OBS выезжает по кнопк
   toggle.click();
   element(w, 'link').click();
   no(panel.hidden);
-  w.document.querySelector('h1').click();
+  element(w, 'status').click();
   ok(panel.hidden);
   eq(toggle.getAttribute('aria-expanded'), 'false');
   frame.remove();
