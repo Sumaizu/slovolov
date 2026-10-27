@@ -681,7 +681,7 @@ test('страница: при первом заходе — пример, ре�
   const w = frame.contentWindow, game = gameOf(w);
   ok(link(w).endsWith('/site/overlay.html'), link(w));
   ok(element(w, 'link-status').textContent.includes('канал'));
-  eq(element(w, 'status').textContent, 'игра в слова для чата Twitch');
+  eq(element(w, 'status').textContent, '');
   ok(element(w, 'link-panel').hidden && element(w, 'settings').hidden);
   ok(element(w, 'example-note').textContent.includes('Пример') && !element(w, 'example-note').hidden);
   eq([game.slovolov.game.state, all(game, '#words .slot').length], ['stopped', 22]);
@@ -691,21 +691,22 @@ test('страница: при первом заходе — пример, ре�
   eq(w.document.getElementById('save'), null);
   const author = w.document.querySelector('.author a');
   eq([author.textContent, author.getAttribute('href')], ['Sumaizu', 'https://twitch.tv/sumaizu']);
-  const home = w.document.querySelector('h1 a');
-  eq([home.textContent, home.getAttribute('href'), home.target], ['Словолов', 'https://gamesonstream.ru/', '']);
+  const home = w.document.querySelector('.top .logo');
+  eq([home.getAttribute('href'), home.target, home.querySelector('img').alt],
+    ['https://gamesonstream.ru/', '', 'Games on Stream']);
+  ok(home.querySelector('img').naturalWidth > 0, 'логотип загрузился');
   frame.remove();
   forget();
 });
 
-test('страница: название, состояние и кнопки — одной полосой по центру, игра занимает остальную страницу', async () => {
+test('страница: логотип и кнопки — одной полосой по центру, внизу строка состояния и автор, игра между ними', async () => {
   forget();
   const frame = await mainPage();
   const w = frame.contentWindow;
   const place = (node) => node.getBoundingClientRect();
   const strip = w.document.querySelector('.top');
-  const parts = [w.document.querySelector('h1'), element(w, 'status'), element(w, 's-channel'), element(w, 'play'),
-    element(w, 'pause'), element(w, 'reset'), element(w, 'toggle-settings'), element(w, 'toggle-link'),
-    w.document.querySelector('.author')];
+  const parts = [w.document.querySelector('.top .logo'), element(w, 's-channel'), element(w, 'play'),
+    element(w, 'pause'), element(w, 'reset'), element(w, 'toggle-settings'), element(w, 'toggle-link')];
   const together = (note) => {
     const title = place(parts[0]);
     parts.forEach((node, i) => {
@@ -717,14 +718,17 @@ test('страница: название, состояние и кнопки —
   };
   together('окно 1280');
   const screen = place(element(w, 'game'));
-  ok(screen.top < place(parts[0]).bottom + 30 && screen.bottom > w.innerHeight - 40, [screen.top, screen.bottom]);
+  ok(screen.top < place(parts[0]).bottom + 30 && screen.bottom > w.innerHeight - 60, [screen.top, screen.bottom]);
+  const foot = place(w.document.querySelector('.foot')), author = place(w.document.querySelector('.foot .author'));
+  ok(foot.top >= screen.bottom && foot.bottom <= w.innerHeight, [foot.top, foot.bottom]);
+  ok(w.document.querySelector('.foot').contains(element(w, 'status')));
+  ok(Math.abs(author.left + author.right - w.innerWidth) <= 4, 'подпись по центру: ' + [author.left, author.right]);
   ok(Math.abs(screen.width / screen.height - 16 / 9) < 0.02);
   eq([w.document.documentElement.scrollHeight, w.document.documentElement.scrollWidth], [w.innerHeight, w.innerWidth]);
-  const narrow = place(element(w, 'status')).width;
   frame.style.width = '1900px';
   await until(() => w.innerWidth === 1900, 'окно стало шире');
   together('окно 1900');
-  ok(place(strip).left > 200 && place(element(w, 'status')).width > narrow, place(strip).left);
+  ok(place(strip).left > 200, place(strip).left);
   const before = place(element(w, 'play')).left;
   element(w, 'status').textContent = 'Подключаюсь к чату очень_длинное_название_канала…';
   eq(place(element(w, 'play')).left, before);
@@ -815,7 +819,7 @@ test('страница: «Начать» запускает игру в брау
   element(w, 'play').click();
   eq([api.game.state, element(w, 'play').textContent, sockets[0].closed], ['stopped', 'Начать', true]);
   await until(() => element(game, 'chat').innerText.includes('уже было'), 'снова пример');
-  eq(element(w, 'status').textContent, 'игра в слова для чата Twitch');
+  eq(element(w, 'status').textContent, '');
   no(element(w, 'example-note').hidden);
   frame.remove();
   forget();
@@ -841,8 +845,8 @@ test('страница: кнопки «Пауза» и «Продолжить» 
   await until(() => !element(game, 'pause').hidden && element(game, 'play').hidden, 'экран паузы в рамке');
   reset.click();
   eq([reset.textContent, api.game.snapshot().players], ['Точно?', 1]);
-  const place = (node) => node.getBoundingClientRect(), title = place(w.document.querySelector('h1'));
-  for (const node of [pause, reset, element(w, 'toggle-link'), w.document.querySelector('.author a')]) {
+  const place = (node) => node.getBoundingClientRect(), title = place(w.document.querySelector('.top .logo'));
+  for (const node of [pause, reset, element(w, 'toggle-link')]) {
     ok(place(node).top < title.bottom && place(node).bottom > title.top, node.id);
   }
   await until(() => reset.textContent === 'Сброс', 'без второго нажатия счёт остаётся', 8000);
