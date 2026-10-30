@@ -25,8 +25,8 @@ OVERLAY_READY = "window.slovolov && document.querySelectorAll('#words .slot').le
 PAGE_READY = "document.getElementById('play') && !document.getElementById('play').disabled ? 1 : 0"
 
 
-def shoot_overlay(browser, base, out, query=""):
-    browser.set_size(1280, 720)
+def shoot_overlay(browser, base, out, query="", width=1280):
+    browser.set_size(width, 720)
     browser.navigate(f"{base}/overlay.html?embed=1{'&' + query if query else ''}")
     browser.wait_for(OVERLAY_READY, 30)
     browser.evaluate(CAMERA_PLACEHOLDER)
@@ -54,7 +54,7 @@ def main():
     try:
         with Browser() as browser:
             shoot_overlay(browser, base, out / "overlay.png")
-            shoot_overlay(browser, base, out / "overlay-compact.png", "chat=0&side=0")
+            shoot_overlay(browser, base, out / "overlay-mini.png", "mini=1", 427)
             shoot_page(browser, base, out / "page.png")
     finally:
         server.shutdown()
