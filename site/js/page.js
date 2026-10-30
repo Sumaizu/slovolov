@@ -3,7 +3,7 @@ import { clean, fromQuery, toQuery } from './config.js';
 const STORAGE_KEY = 'slovolov.settings';
 const NUMBERS = ['pause', 'hint_every', 'round_time', 'shuffle_every', 'base_min', 'base_max', 'extra_letters',
   'min_len', 'max_words', 'min_words', 'reset_hour', 'reset_hours', 'volume'];
-const TEXTS = ['reset_mode', 'accent'];
+const TEXTS = ['reset_mode'];
 const FLAGS = ['chat_commands', 'sound', 'mini'];
 const DATE_MODES = ['day', 'week', 'month'];
 const SYNC_MS = 500;

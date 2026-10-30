@@ -41,9 +41,9 @@ test('настройки: перемешивание — выключено ну
 });
 
 test('настройки: негодные значения заменяются обычными', () => {
-  const s = clean({ pause: 'много', accent: 'красный', min_len: null, extra_letters: 'много', hint_every: true,
+  const s = clean({ pause: 'много', min_len: null, extra_letters: 'много', hint_every: true,
     volume: 'тихо', reset_mode: 'иногда' });
-  for (const key of ['pause', 'accent', 'min_len', 'extra_letters', 'hint_every', 'volume', 'reset_mode']) {
+  for (const key of ['pause', 'min_len', 'extra_letters', 'hint_every', 'volume', 'reset_mode']) {
     eq(s[key], DEFAULTS[key], key);
   }
 });
@@ -80,18 +80,18 @@ test('ссылка: в неё попадает только то, что отл�
   eq(toQuery({ channel: 'SomeOne' }), 'channel=someone');
   const query = toQuery({ channel: 'someone', hint_every: 15, extra_letters: 3, webcam: 'none', mini: true,
     accent: '#00FF7F', pause: DEFAULTS.pause, reset_mode: 'week', sound: false });
-  eq(query, 'channel=someone&hint_every=15&extra_letters=3&reset_mode=week&sound=0&accent=00ff7f&webcam=none&mini=1');
+  eq(query, 'channel=someone&hint_every=15&extra_letters=3&reset_mode=week&sound=0&webcam=none&mini=1');
 });
 
 test('ссылка: настройки возвращаются из неё теми же', () => {
   const settings = clean({ channel: 'someone', pause: 12, base_min: 6, base_max: 9, extra_letters: 3, min_len: 3,
     max_words: 30, min_words: 3, round_time: 300, hint_every: 0, shuffle_every: 0, chat_commands: false,
     reset_mode: 'timer',
-    reset_hours: 3, sound: false, volume: 35, accent: '#3fa7ff', webcam: 'vtuber', mini: true });
+    reset_hours: 3, sound: false, volume: 35, webcam: 'vtuber', mini: true });
   eq(fromQuery('?' + toQuery(settings)), settings);
   eq(fromQuery(''), DEFAULTS);
   eq(fromQuery('?pause=7&мусор=1&accent=%23ff0000').pause, 7);
-  eq(fromQuery('?accent=%23ff0000').accent, '#ff0000');
+  no('accent' in fromQuery('?accent=%23ff0000'), 'цвет больше не настраивается');
   no('мусор' in fromQuery('?мусор=1'));
   ok(fromQuery('?mini=1').mini && !('side' in fromQuery('?side=0')));
 });

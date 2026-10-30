@@ -354,7 +354,8 @@ test('оверлей: окошко под вебку на общем месте,
   const mini = await playing('mini=1&accent=3fa7ff');
   ok(mini.w.document.body.classList.contains('mini'));
   const stage = box(element(mini.w, 'stage')), field = box(element(mini.w, 'main'));
-  eq([stage[1] - stage[0], field[0] - stage[0], stage[1] - field[1]], [640, 16, 16], 'вертикальная сцена 640×720');
+  ok(Math.abs(stage[1] - stage[0] - 1280 / 3) <= 1 && field[0] - stage[0] === 12 && stage[1] - field[1] === 12,
+    'вертикальная сцена 640×1080: ' + [stage, field]);
   eq(mini.w.getComputedStyle(element(mini.w, 'stage'), '::before').display, 'none');
   for (const node of [mini.w.document.querySelector('.chatbox'), element(mini.w, 'side'), mini.w.document.querySelector('.cam'),
     element(mini.w, 'round').parentNode, element(mini.w, 'timeline')]) {
@@ -362,7 +363,7 @@ test('оверлей: окошко под вебку на общем месте,
   }
   eq(mini.w.getComputedStyle(element(mini.w, 'card')).backgroundImage, 'none');
   ok(mini.w.document.querySelector('.head .logo').naturalWidth > 0, 'логотип сайта рядом с названием');
-  eq(mini.w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
+  eq(mini.w.document.documentElement.style.getPropertyValue('--accent'), '', 'цвет из ссылки не берётся');
   const rows = Number(element(mini.w, 'words').style.getPropertyValue('--rows'));
   const words = element(mini.w, 'words'), lengths = all(mini.w, '#words .slot').map((slot) => slot.children.length);
   eq(rows, layout(lengths, words.clientWidth, words.clientHeight, 4, Infinity).rows, 'столбцы — под самые крупные клетки');
@@ -639,10 +640,9 @@ test('встроенный оверлей: пока игру не начали �
   await wait(600);
   eq(element(w, 'label').textContent, label);
   eq(api.view.heard, []);
-  api.apply({ mini: true, max_words: 5, extra_letters: 0, accent: '#3fa7ff' });
+  api.apply({ mini: true, max_words: 5, extra_letters: 0 });
   ok(w.document.body.classList.contains('mini'));
   eq([all(w, '#words .slot').length, all(w, '#letters .tile').length], [5, 7]);
-  eq(w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
   showSource(w, true);
   eq(api.game.state, 'stopped');
   frame.remove();
@@ -807,7 +807,7 @@ test('страница: кнопка «Настройки» открывает �
   ok(Math.abs(place(screen).width / place(screen).height - 16 / 9) < 0.02);
   ok(panel.scrollHeight > panel.clientHeight && place(panel).bottom <= w.innerHeight);
   eq(w.document.documentElement.scrollHeight, w.innerHeight);
-  for (const id of ['s-accent', 's-mini', 'defaults']) {
+  for (const id of ['s-mini', 'defaults']) {
     ok(place(element(w, id)).left >= place(panel).left && place(element(w, id)).right <= place(panel).right, id);
   }
   ok(place(w.document.querySelector('.switch')).height < 48);

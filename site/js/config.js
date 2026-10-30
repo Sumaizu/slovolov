@@ -16,7 +16,6 @@ export const DEFAULTS = {
   reset_hours: 12,
   sound: true,
   volume: 100,
-  accent: '#ffb547',
   webcam: 'cam',
   mini: false,
 };
@@ -26,7 +25,6 @@ export const MAX_WORDS = 45;
 const SHUFFLE_MIN = 5;
 
 const LOGIN_RE = /^[a-z0-9_]{1,25}$/;
-const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 function int(value, fallback, min, max) {
   const n = typeof value === 'boolean' || value === null || value === '' ? NaN : Number(value);
@@ -76,7 +74,6 @@ export function clean(raw) {
   s.reset_hours = int(raw.reset_hours, d.reset_hours, 1, 720);
   s.sound = flag(raw.sound, d.sound);
   s.volume = int(raw.volume, d.volume, 0, 100);
-  s.accent = COLOR_RE.test(String(raw.accent || '')) ? String(raw.accent).toLowerCase() : d.accent;
   s.webcam = camera(raw.webcam, d.webcam);
   s.mini = flag(raw.mini, d.mini);
   return s;
@@ -88,7 +85,7 @@ export function toQuery(settings) {
     const value = s[key];
     if (value === DEFAULTS[key]) continue;
     if (typeof value === 'boolean') params.set(key, value ? '1' : '0');
-    else params.set(key, key === 'accent' ? value.slice(1) : String(value));
+    else params.set(key, String(value));
   }
   return params.toString();
 }
@@ -96,7 +93,7 @@ export function toQuery(settings) {
 export function fromQuery(search) {
   const params = new URLSearchParams(search), raw = {};
   for (const key of Object.keys(DEFAULTS)) {
-    if (params.has(key)) raw[key] = key === 'accent' ? '#' + params.get(key).replace(/^#/, '') : params.get(key);
+    if (params.has(key)) raw[key] = params.get(key);
   }
   return clean(raw);
 }

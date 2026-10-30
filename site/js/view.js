@@ -1,8 +1,8 @@
 import { Emotes } from './emotes.js';
 import { play } from './sound.js';
 
-const STAGE_WIDTH = 1280, MINI_WIDTH = 640, STAGE_HEIGHT = 720;
-const TILE = 84, TILE_DENSE = 62, TILE_GAP = 10, DENSE_FROM = 31;
+const STAGE_WIDTH = 1280, MINI_WIDTH = 1280 / 3, STAGE_HEIGHT = 720;
+const TILE = 84, TILE_DENSE = 62, TILE_GAP = 10, MINI_TILE_GAP = 5, DENSE_FROM = 31;
 const COLUMNS = 3, MINI_COLUMNS = 4, COLUMN_ROWS = 15, CELL_MAX = 46, ROW_GAP = 0.2, COLUMN_GAP = 1.5, CELL_GAP = 0.09;
 const FIELD = { width: 704, height: 466 };
 const SIDE = { height: 664, rules: 159, row: 24, frame: 42, gap: 12 };
@@ -130,11 +130,7 @@ export class View {
 
   use(settings) {
     this.settings = settings;
-    const root = document.documentElement, body = document.body;
-    const value = parseInt(settings.accent.slice(1), 16);
-    const light = luminance(value >> 16 & 255, value >> 8 & 255, value & 255);
-    root.style.setProperty('--accent', settings.accent);
-    root.style.setProperty('--accent-ink', light > 0.55 ? '#241a06' : '#ffffff');
+    const body = document.body;
     body.classList.toggle('nocam', settings.webcam === 'none');
     body.classList.toggle('vtuber', settings.webcam === 'vtuber');
     body.classList.toggle('mini', settings.mini);
@@ -325,7 +321,8 @@ export class View {
   }
 
   _tileSize(count, reserved, largest) {
-    const room = ($('main').clientWidth || FIELD.width) - TILE_GAP * (count - 1) - reserved;
+    const gap = this._mini ? MINI_TILE_GAP : TILE_GAP;
+    const room = ($('main').clientWidth || FIELD.width) - gap * (count - 1) - reserved;
     return Math.max(24, Math.min(largest, Math.floor(room / count)));
   }
 
