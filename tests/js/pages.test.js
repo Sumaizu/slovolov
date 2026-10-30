@@ -363,6 +363,9 @@ test('оверлей: окошко под вебку на общем месте,
   }
   eq(mini.w.getComputedStyle(element(mini.w, 'card')).backgroundImage, 'none');
   ok(mini.w.document.querySelector('.head .logo').naturalWidth > 0, 'логотип сайта рядом с названием');
+  const titleTiles = all(mini.w, '#brand-tiles .tile').map((tile) => tile.getBoundingClientRect());
+  eq(titleTiles.length, 8, 'название — плашками');
+  ok(titleTiles[7].right <= box(element(mini.w, 'main'))[1], 'название влезает в ширину');
   eq(mini.w.document.documentElement.style.getPropertyValue('--accent'), '', 'цвет из ссылки не берётся');
   const rows = Number(element(mini.w, 'words').style.getPropertyValue('--rows'));
   const words = element(mini.w, 'words'), lengths = all(mini.w, '#words .slot').map((slot) => slot.children.length);

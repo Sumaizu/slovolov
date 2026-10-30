@@ -111,6 +111,7 @@ export class View {
     this._secondsLeft = null;
     this._countdownFrom = null;
     this._mini = false;
+    for (const letter of TITLE) $('brand-tiles').append(el('div', 'tile', letter));
     window.addEventListener('resize', () => this._fitStage());
     document.addEventListener('animationstart', keepInStep);
     this._fitStage();
