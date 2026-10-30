@@ -364,7 +364,11 @@ test('оверлей: окошко под вебку на общем месте,
   ok(mini.w.document.querySelector('.head .logo').naturalWidth > 0, 'логотип сайта рядом с названием');
   eq(mini.w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
   const rows = Number(element(mini.w, 'words').style.getPropertyValue('--rows'));
-  eq(Math.ceil(all(mini.w, '#words .slot').length / rows), 2, 'слова в два столбца');
+  const words = element(mini.w, 'words'), lengths = all(mini.w, '#words .slot').map((slot) => slot.children.length);
+  eq(rows, layout(lengths, words.clientWidth, words.clientHeight, 4, Infinity).rows, 'столбцы — под самые крупные клетки');
+  const many = Array.from({ length: 45 }, (_, i) => 4 + Math.floor(i / 9));
+  const packed = layout(many, 608, 520, 4, Infinity), two = layout(many, 608, 520, 2, Infinity);
+  ok(packed.cell > two.cell && Math.ceil(45 / packed.rows) >= 3, 'много слов — больше столбцов, клетки крупнее');
   await until(() => !mini.w.document.getAnimations().length, 'плашки разложены');
   const tiles = all(mini.w, '#letters .tile').map((tile) => tile.getBoundingClientRect());
   ok(Math.abs(tiles[0].left - field[0]) <= 1 && Math.abs(tiles[tiles.length - 1].right - field[1]) <= 1, 'буквы — ровно во всю ширину');

@@ -3,7 +3,7 @@ import { play } from './sound.js';
 
 const STAGE_WIDTH = 1280, MINI_WIDTH = 640, STAGE_HEIGHT = 720;
 const TILE = 84, TILE_DENSE = 62, TILE_GAP = 10, DENSE_FROM = 31;
-const COLUMNS = 3, MINI_COLUMNS = 2, COLUMN_ROWS = 15, CELL_MAX = 46, ROW_GAP = 0.2, COLUMN_GAP = 1.5, CELL_GAP = 0.09;
+const COLUMNS = 3, MINI_COLUMNS = 4, COLUMN_ROWS = 15, CELL_MAX = 46, ROW_GAP = 0.2, COLUMN_GAP = 1.5, CELL_GAP = 0.09;
 const FIELD = { width: 704, height: 466 };
 const SIDE = { height: 664, rules: 159, row: 24, frame: 42, gap: 12 };
 const BOARD = { height: 604, frame: 53, row: 32 };
@@ -61,12 +61,12 @@ function keepInStep(event) {
   if (cycle) event.target.style.setProperty('--phase', -(Date.now() % cycle) + 'ms');
 }
 
-export function layout(lengths, width, height, most = COLUMNS) {
+export function layout(lengths, width, height, most = COLUMNS, tallest = COLUMN_ROWS) {
   const count = lengths.length;
   let best = null;
   for (let columns = 1; columns <= most && count; columns++) {
     const rows = Math.ceil(count / columns);
-    if (rows > COLUMN_ROWS && columns < most) continue;
+    if (rows > tallest && columns < most) continue;
     const used = Math.ceil(count / rows);
     let units = (used - 1) * COLUMN_GAP;
     for (let column = 0; column < used; column++) {
@@ -297,7 +297,7 @@ export class View {
   _fitWords(state) {
     const words = $('words');
     const fit = layout(state.words.map((word) => word.len), words.clientWidth || FIELD.width,
-      words.clientHeight || FIELD.height, this._mini ? MINI_COLUMNS : COLUMNS);
+      words.clientHeight || FIELD.height, this._mini ? MINI_COLUMNS : COLUMNS, this._mini ? Infinity : COLUMN_ROWS);
     words.style.setProperty('--cell', fit.cell + 'px');
     words.style.setProperty('--rows', fit.rows);
   }
