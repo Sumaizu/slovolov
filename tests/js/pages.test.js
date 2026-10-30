@@ -257,9 +257,9 @@ test('оверлей: на паузе вместо игры — счёт рау�
   forget();
 });
 
-test('оверлей: пауза во время отсчёта и без правой панели — рамка на месте, потом отсчёт продолжается', async () => {
+test('оверлей: пауза во время отсчёта в минималистичном оверлее — рамка на месте, потом отсчёт продолжается', async () => {
   forget();
-  const frame = await overlay('side=0');
+  const frame = await overlay('mini=1');
   const w = frame.contentWindow, game = w.slovolov.game;
   await until(() => !element(w, 'lobby').hidden, 'отсчёт на экране');
   const field = box(element(w, 'main')), card = box(element(w, 'card'));
@@ -335,7 +335,7 @@ test('оверлей: слово из чата открывается, кома�
   frame.remove();
 });
 
-test('оверлей: скрытые панели убавляют рамку, а поле игры остаётся на месте', async () => {
+test('оверлей: окошко под вебку на общем месте, минималистичный оверлей — вертикальный и без фона', async () => {
   forget();
   const full = await playing();
   eq([box(element(full.w, 'card')), box(element(full.w, 'main'))], [[6, 1274], [318, 1038]]);
@@ -351,19 +351,28 @@ test('оверлей: скрытые панели убавляют рамку, �
   const backdrop = back.w.getComputedStyle(element(back.w, 'stage'), '::before');
   ok(backdrop.display !== 'none' && backdrop.boxShadow.includes('1400px'), 'место за рамкой залито, окошко пустое');
   back.frame.remove();
-  const bare = await playing('chat=0&side=0&bg=0&accent=3fa7ff');
-  const classes = bare.w.document.body.classList;
-  ok(classes.contains('nochat') && classes.contains('noside') && classes.contains('nobg'));
-  eq([box(element(bare.w, 'card')), box(element(bare.w, 'main'))], [[306, 1050], [318, 1038]]);
-  eq(bare.w.getComputedStyle(element(bare.w, 'stage'), '::before').display, 'none');
-  eq(bare.w.getComputedStyle(bare.w.document.querySelector('.chatbox')).display, 'none');
-  eq(bare.w.getComputedStyle(element(bare.w, 'side')).display, 'none');
-  eq(bare.w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
-  bare.frame.remove();
-  const left = await playing('side=0&webcam=0');
-  eq([box(element(left.w, 'card')), box(element(left.w, 'main'))], [[6, 1050], [318, 1038]]);
-  eq(left.w.getComputedStyle(left.w.document.querySelector('.cam')).display, 'none');
-  left.frame.remove();
+  const mini = await playing('mini=1&accent=3fa7ff');
+  ok(mini.w.document.body.classList.contains('mini'));
+  const stage = box(element(mini.w, 'stage')), field = box(element(mini.w, 'main'));
+  eq([stage[1] - stage[0], field[0] - stage[0], stage[1] - field[1]], [640, 16, 16], 'вертикальная сцена 640×720');
+  eq(mini.w.getComputedStyle(element(mini.w, 'stage'), '::before').display, 'none');
+  for (const node of [mini.w.document.querySelector('.chatbox'), element(mini.w, 'side'), mini.w.document.querySelector('.cam'),
+    element(mini.w, 'round').parentNode, element(mini.w, 'timeline')]) {
+    eq(mini.w.getComputedStyle(node).display, 'none');
+  }
+  eq(mini.w.getComputedStyle(element(mini.w, 'card')).backgroundImage, 'none');
+  ok(mini.w.document.querySelector('.head .logo').naturalWidth > 0, 'логотип сайта рядом с названием');
+  eq(mini.w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
+  const rows = Number(element(mini.w, 'words').style.getPropertyValue('--rows'));
+  eq(Math.ceil(all(mini.w, '#words .slot').length / rows), 2, 'слова в два столбца');
+  await until(() => !mini.w.document.getAnimations().length, 'плашки разложены');
+  const tiles = all(mini.w, '#letters .tile').map((tile) => tile.getBoundingClientRect());
+  ok(Math.abs(tiles[0].left - field[0]) <= 1 && Math.abs(tiles[tiles.length - 1].right - field[1]) <= 1, 'буквы — ровно во всю ширину');
+  ok(tiles[0].height > tiles[0].width, 'буквы ужаты в ширину');
+  mini.frame.remove();
+  const nocam = await playing('webcam=0');
+  eq(nocam.w.getComputedStyle(nocam.w.document.querySelector('.cam')).display, 'none');
+  nocam.frame.remove();
 });
 
 test('оверлей: общий счёт переживает перезагрузку страницы', async () => {
@@ -626,9 +635,8 @@ test('встроенный оверлей: пока игру не начали �
   await wait(600);
   eq(element(w, 'label').textContent, label);
   eq(api.view.heard, []);
-  api.apply({ chat: false, side: false, max_words: 5, extra_letters: 0, accent: '#3fa7ff' });
-  const classes = w.document.body.classList;
-  ok(classes.contains('nochat') && classes.contains('noside'));
+  api.apply({ mini: true, max_words: 5, extra_letters: 0, accent: '#3fa7ff' });
+  ok(w.document.body.classList.contains('mini'));
   eq([all(w, '#words .slot').length, all(w, '#letters .tile').length], [5, 7]);
   eq(w.document.documentElement.style.getPropertyValue('--accent'), '#3fa7ff');
   showSource(w, true);
@@ -654,9 +662,9 @@ test('встроенный оверлей: «начать» — настояща
   await until(() => all(w, '#words .slot.open').length === 1, 'слово открылось');
   const opened = w.document.querySelector('#words .slot.open');
   await until(() => api.view.heard.length === 2, 'звук угаданного слова');
-  api.apply({ channel: 'some_channel', side: false, hint_every: 77, shuffle_every: 0 });
+  api.apply({ channel: 'some_channel', mini: true, hint_every: 77, shuffle_every: 0 });
   eq([api.game.state, api.game.s.hint_every, api.game.snapshot().round], ['playing', 77, 1]);
-  await until(() => w.document.body.classList.contains('noside'), 'счёт скрыт на ходу');
+  await until(() => w.document.body.classList.contains('mini'), 'минималистичный оверлей на ходу');
   await wait(300);
   eq([all(w, '#words .slot.open').length, w.document.querySelector('#words .slot.open') === opened], [1, true]);
   eq(api.view.heard.length, 2);
@@ -795,7 +803,7 @@ test('страница: кнопка «Настройки» открывает �
   ok(Math.abs(place(screen).width / place(screen).height - 16 / 9) < 0.02);
   ok(panel.scrollHeight > panel.clientHeight && place(panel).bottom <= w.innerHeight);
   eq(w.document.documentElement.scrollHeight, w.innerHeight);
-  for (const id of ['s-accent', 'hide-chat', 'hide-side', 'hide-bg', 'defaults']) {
+  for (const id of ['s-accent', 's-mini', 'defaults']) {
     ok(place(element(w, id)).left >= place(panel).left && place(element(w, id)).right <= place(panel).right, id);
   }
   ok(place(w.document.querySelector('.switch')).height < 48);
@@ -898,17 +906,18 @@ test('страница: настройки действуют сразу — и 
     [25, 0, 'playing', 1]);
   eq(query(w), 'channel=some_one&hint_every=25&shuffle_every=0');
   eq(JSON.parse(localStorage.getItem('slovolov.settings')).hint_every, 25);
-  type(w, 'hide-chat', true);
+  type(w, 's-mini', true);
   eq(all(w, '[data-webcam]').map((button) => button.textContent), ['Без вебки', 'С вебкой', 'Витубер']);
   w.document.querySelector('[data-webcam="none"]').click();
   ok(w.document.querySelector('[data-webcam="none"]').classList.contains('on'));
-  await until(() => game.document.body.classList.contains('nochat'), 'чат скрыт на ходу');
-  eq(query(w), 'channel=some_one&hint_every=25&shuffle_every=0&webcam=none&chat=0');
+  await until(() => game.document.body.classList.contains('mini'), 'минималистичный оверлей на ходу');
+  ok(element(w, 'webcam-field').hidden && element(w, 'game').parentNode.classList.contains('mini'));
+  eq(query(w), 'channel=some_one&hint_every=25&shuffle_every=0&webcam=none&mini=1');
   type(w, 's-shuffle_every', '2');
   eq([element(w, 's-shuffle_every').value, api.game.s.shuffle_every], ['5', 5]);
   element(w, 'defaults').click();
   eq(shownNumbers(w), RECOMMENDED);
-  eq([query(w), element(w, 's-channel').value, element(w, 'hide-chat').checked, api.game.s.hint_every],
+  eq([query(w), element(w, 's-channel').value, element(w, 's-mini').checked, api.game.s.hint_every],
     ['channel=some_one', 'some_one', false, 10]);
   eq(api.game.state, 'playing');
   frame.remove();
@@ -917,13 +926,13 @@ test('страница: настройки действуют сразу — и 
 
 test('страница: настройки запоминаются между заходами, адрес страницы важнее запомненного', async () => {
   forget();
-  localStorage.setItem('slovolov.settings', JSON.stringify({ pause: 12, extra_letters: 3, chat: false }));
+  localStorage.setItem('slovolov.settings', JSON.stringify({ pause: 12, extra_letters: 3, mini: true }));
   let frame = await mainPage();
   let w = frame.contentWindow;
-  eq(query(w), 'pause=12&extra_letters=3&chat=0');
-  eq([element(w, 's-pause').value, element(w, 's-extra_letters').value, element(w, 'hide-chat').checked],
+  eq(query(w), 'pause=12&extra_letters=3&mini=1');
+  eq([element(w, 's-pause').value, element(w, 's-extra_letters').value, element(w, 's-mini').checked],
     ['12', '3', true]);
-  ok(gameOf(w).document.body.classList.contains('nochat'));
+  ok(gameOf(w).document.body.classList.contains('mini'));
   eq(all(gameOf(w), '#letters .tile').length, 10);
   frame.remove();
   frame = await mainPage('?pause=45&min_len=3');

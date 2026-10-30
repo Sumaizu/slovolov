@@ -18,9 +18,7 @@ export const DEFAULTS = {
   volume: 100,
   accent: '#ffb547',
   webcam: 'cam',
-  chat: true,
-  side: true,
-  bg: true,
+  mini: false,
 };
 export const RESET_MODES = ['never', 'day', 'week', 'month', 'timer'];
 export const MAX_WORDS = 45;
@@ -80,9 +78,7 @@ export function clean(raw) {
   s.volume = int(raw.volume, d.volume, 0, 100);
   s.accent = COLOR_RE.test(String(raw.accent || '')) ? String(raw.accent).toLowerCase() : d.accent;
   s.webcam = camera(raw.webcam, d.webcam);
-  s.chat = flag(raw.chat, d.chat);
-  s.side = flag(raw.side, d.side);
-  s.bg = flag(raw.bg, d.bg);
+  s.mini = flag(raw.mini, d.mini);
   return s;
 }
 

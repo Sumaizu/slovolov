@@ -1,9 +1,9 @@
 import { Emotes } from './emotes.js';
 import { play } from './sound.js';
 
-const STAGE_WIDTH = 1280, STAGE_HEIGHT = 720;
+const STAGE_WIDTH = 1280, MINI_WIDTH = 640, STAGE_HEIGHT = 720;
 const TILE = 84, TILE_DENSE = 62, TILE_GAP = 10, DENSE_FROM = 31;
-const COLUMNS = 3, COLUMN_ROWS = 15, CELL_MAX = 46, ROW_GAP = 0.2, COLUMN_GAP = 1.5, CELL_GAP = 0.09;
+const COLUMNS = 3, MINI_COLUMNS = 2, COLUMN_ROWS = 15, CELL_MAX = 46, ROW_GAP = 0.2, COLUMN_GAP = 1.5, CELL_GAP = 0.09;
 const FIELD = { width: 704, height: 466 };
 const SIDE = { height: 664, rules: 159, row: 24, frame: 42, gap: 12 };
 const BOARD = { height: 604, frame: 53, row: 32 };
@@ -61,12 +61,12 @@ function keepInStep(event) {
   if (cycle) event.target.style.setProperty('--phase', -(Date.now() % cycle) + 'ms');
 }
 
-export function layout(lengths, width, height) {
+export function layout(lengths, width, height, most = COLUMNS) {
   const count = lengths.length;
   let best = null;
-  for (let columns = 1; columns <= COLUMNS && count; columns++) {
+  for (let columns = 1; columns <= most && count; columns++) {
     const rows = Math.ceil(count / columns);
-    if (rows > COLUMN_ROWS && columns < COLUMNS) continue;
+    if (rows > COLUMN_ROWS && columns < most) continue;
     const used = Math.ceil(count / rows);
     let units = (used - 1) * COLUMN_GAP;
     for (let column = 0; column < used; column++) {
@@ -110,6 +110,7 @@ export class View {
     this._feedStale = false;
     this._secondsLeft = null;
     this._countdownFrom = null;
+    this._mini = false;
     window.addEventListener('resize', () => this._fitStage());
     document.addEventListener('animationstart', keepInStep);
     this._fitStage();
@@ -136,11 +137,14 @@ export class View {
     root.style.setProperty('--accent-ink', light > 0.55 ? '#241a06' : '#ffffff');
     body.classList.toggle('nocam', settings.webcam === 'none');
     body.classList.toggle('vtuber', settings.webcam === 'vtuber');
-    body.classList.toggle('nochat', !settings.chat);
-    body.classList.toggle('noside', !settings.side);
-    body.classList.toggle('nobg', !settings.bg);
+    body.classList.toggle('mini', settings.mini);
     this._paintRules();
     this._listKeys = {};
+    if (settings.mini === this._mini) return;
+    this._mini = settings.mini;
+    this._fitStage();
+    this._lettersKey = '';
+    if (this._roundKey && this.state && this.state.words) this._fitWords(this.state);
   }
 
   render(state) {
@@ -231,7 +235,8 @@ export class View {
   }
 
   _fitStage() {
-    const scale = Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT);
+    const width = document.body.classList.contains('mini') ? MINI_WIDTH : STAGE_WIDTH;
+    const scale = Math.min(window.innerWidth / width, window.innerHeight / STAGE_HEIGHT);
     $('stage').style.setProperty('--k', scale);
   }
 
@@ -280,16 +285,21 @@ export class View {
       }
       words.append(slot);
     }
-    const fit = layout(state.words.map((word) => word.len), words.clientWidth || FIELD.width,
-      words.clientHeight || FIELD.height);
-    words.style.setProperty('--cell', fit.cell + 'px');
-    words.style.setProperty('--rows', fit.rows);
+    this._fitWords(state);
     if (!this._animate || over) return;
     this._cue('start');
     const play = $('play');
     play.classList.remove('enter');
     void play.offsetWidth;
     play.classList.add('enter');
+  }
+
+  _fitWords(state) {
+    const words = $('words');
+    const fit = layout(state.words.map((word) => word.len), words.clientWidth || FIELD.width,
+      words.clientHeight || FIELD.height, this._mini ? MINI_COLUMNS : COLUMNS);
+    words.style.setProperty('--cell', fit.cell + 'px');
+    words.style.setProperty('--rows', fit.rows);
   }
 
   _paintSlots(state) {

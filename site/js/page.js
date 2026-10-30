@@ -4,8 +4,7 @@ const STORAGE_KEY = 'slovolov.settings';
 const NUMBERS = ['pause', 'hint_every', 'round_time', 'shuffle_every', 'base_min', 'base_max', 'extra_letters',
   'min_len', 'max_words', 'min_words', 'reset_hour', 'reset_hours', 'volume'];
 const TEXTS = ['reset_mode', 'accent'];
-const FLAGS = ['chat_commands', 'sound'];
-const HIDDEN_PARTS = { chat: 'hide-chat', side: 'hide-side', bg: 'hide-bg' };
+const FLAGS = ['chat_commands', 'sound', 'mini'];
 const DATE_MODES = ['day', 'week', 'month'];
 const SYNC_MS = 500;
 const RESET_CONFIRM_MS = 4000;
@@ -49,7 +48,6 @@ function fillForm() {
   channelField.value = settings.channel;
   for (const key of NUMBERS.concat(TEXTS)) $('s-' + key).value = settings[key];
   for (const key of FLAGS) $('s-' + key).checked = settings[key];
-  for (const key of Object.keys(HIDDEN_PARTS)) $(HIDDEN_PARTS[key]).checked = !settings[key];
   showDependentFields(settings);
 }
 
@@ -58,7 +56,6 @@ function readForm() {
   for (const key of NUMBERS) raw[key] = $('s-' + key).value === '' ? null : Number($('s-' + key).value);
   for (const key of TEXTS) raw[key] = $('s-' + key).value;
   for (const key of FLAGS) raw[key] = $('s-' + key).checked;
-  for (const key of Object.keys(HIDDEN_PARTS)) raw[key] = !$(HIDDEN_PARTS[key]).checked;
   return clean(raw);
 }
 
@@ -69,6 +66,8 @@ function showDependentFields(shown) {
   for (const button of document.querySelectorAll('[data-webcam]')) {
     button.classList.toggle('on', button.dataset.webcam === shown.webcam);
   }
+  $('webcam-field').hidden = shown.mini;
+  frame.parentNode.classList.toggle('mini', shown.mini);
 }
 
 function showStatus(id, kind, text) {
