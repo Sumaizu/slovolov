@@ -338,25 +338,23 @@ test('оверлей: слово из чата открывается, кома�
 test('оверлей: окошко под вебку на общем месте, минималистичный оверлей — вертикальный и без фона', async () => {
   forget();
   const full = await playing();
-  eq([box(element(full.w, 'card')), box(element(full.w, 'main'))], [[6, 1274], [318, 1038]]);
+  eq([box(element(full.w, 'card')), box(element(full.w, 'main'))], [[0, 1280], [318, 1038]]);
   eq(camAt(full.w), [18, 494, 280, 210], 'окошко под вебку — там же, где в других играх');
   full.frame.remove();
   const vtuber = await playing('webcam=vtuber');
   ok(vtuber.w.document.body.classList.contains('vtuber'));
   eq(camAt(vtuber.w), [18, 344, 280, 360], 'окошко витубера — там же, где в других играх');
   eq(box(element(vtuber.w, 'main'))[1], 1038, 'правый край поля на месте');
-  ok(vtuber.w.getComputedStyle(element(vtuber.w, 'stage'), '::before').clipPath.includes('344px'));
   vtuber.frame.remove();
   const back = await playing();
-  const backdrop = back.w.getComputedStyle(element(back.w, 'stage'), '::before');
-  ok(backdrop.display !== 'none' && backdrop.boxShadow.includes('1400px'), 'место за рамкой залито, окошко пустое');
+  const card = back.w.getComputedStyle(element(back.w, 'card'));
+  eq([card.borderRadius, card.boxShadow], ['0px', 'none'], 'фон до краёв, без скруглений, как в Чатобороне');
   back.frame.remove();
   const mini = await playing('mini=1&accent=3fa7ff');
   ok(mini.w.document.body.classList.contains('mini'));
   const stage = box(element(mini.w, 'stage')), field = box(element(mini.w, 'main'));
   ok(Math.abs(stage[1] - stage[0] - 1280 / 3) <= 1 && field[0] - stage[0] === 12 && stage[1] - field[1] === 12,
     'вертикальная сцена 640×1080: ' + [stage, field]);
-  eq(mini.w.getComputedStyle(element(mini.w, 'stage'), '::before').display, 'none');
   for (const node of [mini.w.document.querySelector('.chatbox'), element(mini.w, 'side'), mini.w.document.querySelector('.cam'),
     element(mini.w, 'round').parentNode, element(mini.w, 'timeline')]) {
     eq(mini.w.getComputedStyle(node).display, 'none');
