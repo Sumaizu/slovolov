@@ -67,7 +67,7 @@ function showDependentFields(shown) {
   $('reset-hours-field').hidden = shown.reset_mode !== 'timer';
   $('volume-text').textContent = shown.volume + '%';
   for (const button of document.querySelectorAll('[data-webcam]')) {
-    button.classList.toggle('on', (button.dataset.webcam === '1') === shown.webcam);
+    button.classList.toggle('on', button.dataset.webcam === shown.webcam);
   }
 }
 
@@ -227,7 +227,7 @@ form.addEventListener('change', () => adopt(readForm(), true));
 form.addEventListener('submit', (event) => event.preventDefault());
 for (const button of document.querySelectorAll('[data-webcam]')) {
   button.addEventListener('click', () => {
-    adopt(clean(Object.assign(readForm(), { webcam: button.dataset.webcam === '1' })), true);
+    adopt(clean(Object.assign(readForm(), { webcam: button.dataset.webcam })), true);
   });
 }
 $('defaults').addEventListener('click', () => adopt(clean({ channel: settings.channel }), true));

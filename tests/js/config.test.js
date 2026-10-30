@@ -50,9 +50,18 @@ test('настройки: негодные значения заменяются
 
 test('настройки: флажки', () => {
   const s = clean({ chat_commands: '', sound: '0', webcam: 'false', chat: 0, side: 'off', bg: false });
-  eq([s.chat_commands, s.sound, s.webcam, s.chat, s.side, s.bg], [false, false, false, false, false, false]);
+  eq([s.chat_commands, s.sound, s.webcam, s.chat, s.side, s.bg], [false, false, 'none', false, false, false]);
   const on = clean({ sound: '1', webcam: 'да', side: 1 });
-  eq([on.sound, on.webcam, on.side], [true, true, true]);
+  eq([on.sound, on.webcam, on.side], [true, 'cam', true]);
+});
+
+test('настройки: окошко под вебку — без вебки, с вебкой, витубер; старые ссылки читаются', () => {
+  eq(['none', 'cam', 'vtuber', 'VTuber', '0', '1', 'false', 'true', 'да', ''].map((webcam) => clean({ webcam }).webcam),
+    ['none', 'cam', 'vtuber', 'vtuber', 'none', 'cam', 'none', 'cam', 'cam', 'none']);
+  eq([clean({ webcam: true }).webcam, clean({ webcam: false }).webcam, clean({}).webcam], ['cam', 'none', 'cam']);
+  eq([toQuery({ webcam: 'vtuber' }), toQuery({ webcam: 'none' }), toQuery({ webcam: 'cam' })],
+    ['webcam=vtuber', 'webcam=none', '']);
+  eq(fromQuery('?webcam=0').webcam, 'none');
 });
 
 test('настройки: расписание сброса счёта', () => {
@@ -68,16 +77,16 @@ test('настройки: убранные и чужие ключи отбрас
 test('ссылка: в неё попадает только то, что отличается от обычного', () => {
   eq(toQuery({}), '');
   eq(toQuery({ channel: 'SomeOne' }), 'channel=someone');
-  const query = toQuery({ channel: 'someone', hint_every: 15, extra_letters: 3, webcam: false, chat: false,
+  const query = toQuery({ channel: 'someone', hint_every: 15, extra_letters: 3, webcam: 'none', chat: false,
     accent: '#00FF7F', pause: DEFAULTS.pause, reset_mode: 'week', sound: false });
-  eq(query, 'channel=someone&hint_every=15&extra_letters=3&reset_mode=week&sound=0&accent=00ff7f&webcam=0&chat=0');
+  eq(query, 'channel=someone&hint_every=15&extra_letters=3&reset_mode=week&sound=0&accent=00ff7f&webcam=none&chat=0');
 });
 
 test('ссылка: настройки возвращаются из неё теми же', () => {
   const settings = clean({ channel: 'someone', pause: 12, base_min: 6, base_max: 9, extra_letters: 3, min_len: 3,
     max_words: 30, min_words: 3, round_time: 300, hint_every: 0, shuffle_every: 0, chat_commands: false,
     reset_mode: 'timer',
-    reset_hours: 3, sound: false, volume: 35, accent: '#3fa7ff', webcam: false, chat: false, side: false, bg: false });
+    reset_hours: 3, sound: false, volume: 35, accent: '#3fa7ff', webcam: 'vtuber', chat: false, side: false, bg: false });
   eq(fromQuery('?' + toQuery(settings)), settings);
   eq(fromQuery(''), DEFAULTS);
   eq(fromQuery('?pause=7&мусор=1&accent=%23ff0000').pause, 7);
