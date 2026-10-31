@@ -1,4 +1,5 @@
 import { DEFAULTS, clean, fromQuery, toQuery } from '../../site/js/config.js';
+import { playNote, reportPlay } from '../../site/js/stats.js';
 import { eq, no, ok, test } from './harness.js';
 
 test('настройки: значения по умолчанию', () => {
@@ -94,4 +95,14 @@ test('ссылка: настройки возвращаются из неё те
   no('accent' in fromQuery('?accent=%23ff0000'), 'цвет больше не настраивается');
   no('мусор' in fromQuery('?мусор=1'));
   ok(fromQuery('?mini=1').mini && !('side' in fromQuery('?side=0')));
+});
+
+test('статистика: отметка о запуске — только с каналом и только с сайта gamesonstream.ru', () => {
+  eq(playNote('slovolov', { channel: '', webcam: 'cam' }, false), null);
+  eq(playNote('slovolov', { channel: 'some_one', webcam: 'vtuber' }, true),
+    { game: 'slovolov', channel: 'some_one', mode: 'vtuber', place: 'browser' });
+  eq(playNote('slovolov', { channel: 'some_one', webcam: 'none' }, false).place, 'obs');
+  eq(playNote('slovolov', { channel: 'some_one', webcam: 'cam', mini: true }, false).mode, 'mini');
+  eq([reportPlay({ game: 'x' }, '127.0.0.1'), reportPlay({ game: 'x' }, 'sumaizu.github.io'), reportPlay(null, 'gamesonstream.ru')],
+    [false, false, false]);
 });

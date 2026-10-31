@@ -3,15 +3,17 @@ import { clean, fromQuery } from './config.js';
 import { demoState } from './demo.js';
 import { Game, Scores } from './engine.js';
 import { playAll } from './sound.js';
+import { playNote, reportPlay } from './stats.js';
 import { View } from './view.js';
 import { Dictionary } from './words.js';
 
 const CODE_FILES = ['overlay.html', 'css/overlay.css', 'js/overlay.js', 'js/view.js', 'js/engine.js', 'js/words.js',
-  'js/chat.js', 'js/config.js', 'js/demo.js', 'js/emotes.js', 'js/sound.js'];
+  'js/chat.js', 'js/config.js', 'js/demo.js', 'js/emotes.js', 'js/sound.js', 'js/stats.js'];
 const DATA_FILES = ['data/nouns_ru.tsv', 'data/blocklist.txt'];
 const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 const UPDATE_CHECK_SECONDS = LOCAL ? 5 : 300;
 const RELOAD_PAUSE_SECONDS = LOCAL ? 0 : 600;
+const STATS_EVERY_SECONDS = 600;
 const DICTIONARY_RETRY_SECONDS = 5;
 const EMBEDDED = new URLSearchParams(location.search).get('embed') === '1';
 
@@ -113,9 +115,15 @@ async function run(view) {
   const restart = () => {
     game.stop();
     game.open();
+    notePlay();
   };
   game.onchange = refresh;
   setInterval(() => game.tick(), 250);
+
+  const notePlay = () => {
+    if (live && game.state !== 'stopped') reportPlay(playNote('slovolov', settings, EMBEDDED));
+  };
+  setInterval(notePlay, STATS_EVERY_SECONDS * 1000);
 
   window.slovolov = {
     game,
