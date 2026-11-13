@@ -577,6 +577,24 @@ test('оверлей: снежный ник — голубая рамка, по 
   forget();
 });
 
+test('оверлей: ник Renozis — красный, из середины мерцает блик, в лад в чате и в счёте', async () => {
+  forget();
+  const { frame, w, game, chat } = await playing('hint_every=0');
+  const style = (node, pseudo) => w.getComputedStyle(node, pseudo);
+  const rows = () => all(w, '#chat .msg');
+  chat.onMessage('Renozis', 'привет', false, { login: 'renozis' });
+  await wait(700);
+  chat.onMessage('Renozis', game.answers().words[0].word, false, { login: 'renozis' });
+  await until(() => rows().length === 2, 'два сообщения');
+  eq(rows()[0].className, 'msg star star-glare pop');
+  eq(style(rows()[0]).borderTopColor, 'rgb(255, 43, 43)');
+  eq(style(rows()[0].querySelector('b')).animationName, 'glare');
+  await until(() => w.document.querySelector('#list-round .name.glare'), 'ник в счёте раунда');
+  await until(() => inStep(w, 'glare', 4), 'блик в чате и в счёте мерцает в лад');
+  frame.remove();
+  forget();
+});
+
 function inStep(w, name, count) {
   const phases = w.document.getAnimations().filter((item) => item.animationName === name)
     .map((item) => item.effect.getComputedTiming().progress);
