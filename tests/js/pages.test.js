@@ -536,8 +536,9 @@ test('оверлей: у особых ников свой цвет — в чат
   await until(() => rows().length === 5, 'пять сообщений');
   eq(rows().map((row) => row.className), ['msg pop', 'msg pop', 'msg hit pop', 'msg pop', 'msg pop']);
   const [white, thyme, heart, rainbow, plain] = rows();
-  const colors = ['rgb(255, 255, 255)', 'rgb(94, 220, 31)', 'rgb(212, 36, 38)'];
-  eq([white, thyme, heart].map((row) => style(row.querySelector('b')).color), colors);
+  const colors = ['rgb(255, 255, 255)', 'rgb(94, 220, 31)'];
+  eq([white, thyme].map((row) => style(row.querySelector('b')).color), colors);
+  eq(style(heart.querySelector('b')).animationName, 'heart-reds');
   eq(rainbow.querySelector('b').className, 'rainbow');
   for (const row of rows()) {
     eq([style(row).borderTopWidth, style(row, '::before').content, style(row, '::after').content], ['0px', 'none', 'none']);
@@ -545,7 +546,7 @@ test('оверлей: у особых ников свой цвет — в чат
   const height = (row) => Math.round(row.getBoundingClientRect().height);
   ok(Math.abs(height(rainbow) - height(plain)) <= 1);
   await until(() => w.document.querySelector('#list-round .name.heart'), 'ник в счёте раунда');
-  eq(style(w.document.querySelector('#list-total .name.heart')).color, colors[2]);
+  eq(style(w.document.querySelector('#list-total .name.heart')).animationName, 'heart-reds');
   frame.remove();
   forget();
 });
