@@ -488,11 +488,9 @@ test('оверлей: в чате — «уже было», автор игры �
   await until(() => rows().length === 4, 'четыре сообщения');
   no(rows()[0].innerText.includes('уже было'));
   ok(rows()[1].innerText.includes('уже было'), rows()[1].innerText);
-  no(rows()[0].classList.contains('star'));
-  ok(rows()[2].classList.contains('star') && rows()[2].querySelector('b').classList.contains('rainbow'));
-  ok(w.getComputedStyle(rows()[2], '::before').borderTopWidth !== '0px');
-  eq(w.getComputedStyle(rows()[2], '::before').animationName, 'rainbow');
-  eq(w.getComputedStyle(rows()[0], '::before').content, 'none');
+  ok(rows()[2].querySelector('b').classList.contains('rainbow'));
+  eq(w.getComputedStyle(rows()[2].querySelector('b')).animationName, 'rainbow');
+  eq([w.getComputedStyle(rows()[2]).borderTopWidth, w.getComputedStyle(rows()[2], '::before').content], ['0px', 'none']);
   eq(w.getComputedStyle(rows()[2].querySelector('.text')).color, w.getComputedStyle(rows()[0]).color);
   eq(images(rows()[3]), ['https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0']);
   ok(rows()[3].innerText.includes('ну и буквы constructor'));
@@ -525,7 +523,7 @@ test('оверлей: в чате — «уже было», автор игры �
   frame.remove();
 });
 
-test('оверлей: у особых ников свой цвет и своя рамка — в чате и в счёте', async () => {
+test('оверлей: у особых ников свой цвет — в чате и в счёте, без рамки', async () => {
   forget();
   const { frame, w, game, chat } = await playing('hint_every=0');
   const style = (node, pseudo) => w.getComputedStyle(node, pseudo);
@@ -536,29 +534,23 @@ test('оверлей: у особых ников свой цвет и своя �
   chat.onMessage('Sumaizu', 'привет', false, { login: 'sumaizu' });
   chat.onMessage('Петя', 'привет', false, { login: 'petya' });
   await until(() => rows().length === 5, 'пять сообщений');
-  eq(rows().map((row) => row.className), ['msg star star-white pop', 'msg star star-thyme pop',
-    'msg hit star star-heart pop', 'msg star star-rainbow pop', 'msg pop']);
+  eq(rows().map((row) => row.className), ['msg pop', 'msg pop', 'msg hit pop', 'msg pop', 'msg pop']);
   const [white, thyme, heart, rainbow, plain] = rows();
   const colors = ['rgb(255, 255, 255)', 'rgb(94, 220, 31)', 'rgb(212, 36, 38)'];
   eq([white, thyme, heart].map((row) => style(row.querySelector('b')).color), colors);
-  eq([white, thyme, heart].map((row) => style(row).borderTopColor), colors);
-  eq(rows().map((row) => style(row).animationName), ['msg-in', 'msg-in', 'msg-in', 'msg-in', 'msg-in']);
-  eq([style(heart, '::after').animationName, style(heart, '::after').color], ['heart', colors[2]]);
-  eq(style(heart, '::after').content.codePointAt(1), 0x2665);
-  eq([white, thyme, rainbow, plain].map((row) => style(row, '::after').content), ['none', 'none', 'none', 'none']);
-  eq([style(rainbow).borderTopWidth, style(rainbow, '::before').animationName], ['0px', 'rainbow']);
-  ok(style(rainbow, '::before').backgroundImage.includes('linear-gradient'));
-  eq(style(rainbow, '::before').backgroundImage, style(rainbow.querySelector('b')).backgroundImage);
-  eq([style(plain).borderTopWidth, style(plain, '::before').content], ['0px', 'none']);
+  eq(rainbow.querySelector('b').className, 'rainbow');
+  for (const row of rows()) {
+    eq([style(row).borderTopWidth, style(row, '::before').content, style(row, '::after').content], ['0px', 'none', 'none']);
+  }
   const height = (row) => Math.round(row.getBoundingClientRect().height);
-  ok(Math.abs(height(rainbow) - height(white)) <= 1);
+  ok(Math.abs(height(rainbow) - height(plain)) <= 1);
   await until(() => w.document.querySelector('#list-round .name.heart'), 'ник в счёте раунда');
   eq(style(w.document.querySelector('#list-total .name.heart')).color, colors[2]);
   frame.remove();
   forget();
 });
 
-test('оверлей: снежный ник — голубая рамка, по нику бежит блик, в лад в чате и в счёте', async () => {
+test('оверлей: снежный ник — по нику бежит блик, в лад в чате и в счёте', async () => {
   forget();
   const { frame, w, game, chat } = await playing('hint_every=0');
   const style = (node, pseudo) => w.getComputedStyle(node, pseudo);
@@ -567,10 +559,8 @@ test('оверлей: снежный ник — голубая рамка, по 
   await wait(700);
   chat.onMessage('higashi_vo', game.answers().words[0].word, false, { login: 'higashi_vo' });
   await until(() => rows().length === 2, 'два сообщения');
-  eq(rows()[0].className, 'msg star star-snow pop');
-  eq(style(rows()[0]).borderTopColor, 'rgb(166, 214, 255)');
+  eq(style(rows()[0]).borderTopWidth, '0px');
   eq(style(rows()[0].querySelector('b')).animationName, 'snow-glint');
-  eq(style(rows()[0], '::after').content, 'none');
   await until(() => w.document.querySelector('#list-round .name.snow'), 'ник в счёте раунда');
   await until(() => inStep(w, 'snow-glint', 4), 'блик в чате и в счёте идёт в лад');
   frame.remove();
@@ -586,11 +576,28 @@ test('оверлей: ник Renozis — красный, из середины �
   await wait(700);
   chat.onMessage('Renozis', game.answers().words[0].word, false, { login: 'renozis' });
   await until(() => rows().length === 2, 'два сообщения');
-  eq(rows()[0].className, 'msg star star-glare pop');
-  eq(style(rows()[0]).borderTopColor, 'rgb(255, 43, 43)');
+  eq(style(rows()[0]).borderTopWidth, '0px');
   eq(style(rows()[0].querySelector('b')).animationName, 'glare');
   await until(() => w.document.querySelector('#list-round .name.glare'), 'ник в счёте раунда');
   await until(() => inStep(w, 'glare', 4), 'блик в чате и в счёте мерцает в лад');
+  frame.remove();
+  forget();
+});
+
+test('оверлей: ник sulffur_ — переливы нефрита, фиолетового и красного с бликом, в лад в чате и в счёте', async () => {
+  forget();
+  const { frame, w, game, chat } = await playing('hint_every=0');
+  const style = (node) => w.getComputedStyle(node);
+  const rows = () => all(w, '#chat .msg');
+  chat.onMessage('sulffur_', 'привет', false, { login: 'sulffur_' });
+  await wait(700);
+  chat.onMessage('sulffur_', game.answers().words[0].word, false, { login: 'sulffur_' });
+  await until(() => rows().length === 2, 'два сообщения');
+  const nick = rows()[0].querySelector('b');
+  eq([nick.className, style(nick).animationName, style(nick).webkitTextFillColor], ['gem', 'gem', 'rgba(0, 0, 0, 0)']);
+  eq(style(rows()[0]).borderTopWidth, '0px');
+  await until(() => w.document.querySelector('#list-round .name.gem'), 'ник в счёте раунда');
+  await until(() => inStep(w, 'gem', 4), 'переливы в чате и в счёте идут в лад');
   frame.remove();
   forget();
 });
@@ -603,25 +610,21 @@ function inStep(w, name, count) {
   return Math.min(range, 1 - range) < 0.02;
 }
 
-test('оверлей: радуга автора и сердечки идут в лад — и после того, как источник скрыли и показали', async () => {
+test('оверлей: радуга автора идёт в лад — и после того, как источник скрыли и показали', async () => {
   forget();
   const { frame, w, game, chat } = await playing('hint_every=0');
   const dev = game.snapshot().stars[0][0];
   chat.onMessage(dev, 'всем привет', false, { login: dev });
-  chat.onMessage('WELOVEGAMES', 'привет', false, { login: 'welovegames' });
   await wait(700);
   chat.onMessage(dev, game.answers().words[0].word, false, { login: dev });
-  chat.onMessage('WELOVEGAMES', 'я тут', false, { login: 'welovegames' });
-  await until(() => inStep(w, 'rainbow', 6), 'ник и рамка в чате, ник в счёте переливаются в лад');
-  await until(() => inStep(w, 'heart', 2), 'сердечки появляются разом');
+  await until(() => inStep(w, 'rainbow', 4), 'ник в чате и в счёте переливается в лад');
   showSource(w, false);
   await until(() => element(w, 'stage').hidden, 'оверлей убран');
   await wait(450);
   showSource(w, true);
   await until(() => !element(w, 'stage').hidden, 'оверлей на экране');
   chat.onMessage(dev, 'я снова тут', false, { login: dev });
-  await until(() => inStep(w, 'rainbow', 7), 'после возвращения радуга снова идёт в лад');
-  await until(() => inStep(w, 'heart', 2), 'после возвращения сердечки снова появляются разом');
+  await until(() => inStep(w, 'rainbow', 4), 'после возвращения радуга снова идёт в лад');
   frame.remove();
   forget();
 });

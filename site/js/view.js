@@ -10,7 +10,7 @@ const BOARD = { height: 604, frame: 53, row: 32 };
 const TOP_ROWS = 10;
 const LONG_WORD = 6;
 const FINAL_SECONDS = 3;
-const CYCLES = new Map([['rainbow', 2400], ['heart', 15000], ['snow-glint', 6000], ['glare', 3000]]);
+const CYCLES = new Map([['rainbow', 2400], ['snow-glint', 6000], ['glare', 3000], ['gem', 6000]]);
 const TITLE = 'СЛОВОЛОВ';
 const REASONS = { all: 'Всё угадано!', hints: 'Раунд окончен', time: 'Время вышло', skip: 'Раунд окончен' };
 const NICK_COLORS = ['#ff8f85', '#ffb547', '#f2dd6e', '#8fe3ae', '#7fd4ff', '#b7a6ff', '#ff9ad5', '#8fe0d2'];
@@ -461,7 +461,7 @@ export class View {
 
   _messageRow(message, fresh) {
     const star = message.star || '';
-    const marks = (message.pts ? ' hit' : '') + (star ? ' star star-' + star : '') + (fresh ? ' pop' : '');
+    const marks = (message.pts ? ' hit' : '') + (fresh ? ' pop' : '');
     const row = el('div', 'msg' + marks);
     const nick = el('b', star, message.user);
     if (!star) nick.style.color = nickColor(message);
